@@ -1,0 +1,18 @@
+drop database vCenter
+go
+drop database VUM
+go
+drop database ViewEvents
+go
+drop database ViewComposer
+go
+drop database SRM
+go
+drop database SRMRep
+go
+drop database RSA
+go
+drop database vCloud51
+go
+drop database vCloud15
+go

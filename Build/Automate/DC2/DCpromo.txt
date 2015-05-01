@@ -1,0 +1,11 @@
+[DCInstall]
+UserName=administrator
+UserDomain=lab.local
+Password=VMware1!
+SiteName = "Lab"
+ReplicaOrNewDomain=replica 
+ReplicaDomainDNSName=lab.local
+InstallDNS=yes 
+ConfirmGC=yes 
+RebootOnCompletion=yes
+SafeModeAdminPassword="VMware1!"

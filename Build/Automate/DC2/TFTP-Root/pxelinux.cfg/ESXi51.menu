@@ -1,0 +1,22 @@
+MENU TITLE ESXi 5.1 installs
+
+LABEL Main Menu
+  MENU LABEL ^Return to Main Menu
+  KERNEL pxelinux.cfg/vesamenu.c32
+  APPEND pxelinux.cfg/default
+
+label esx51
+	KERNEL /esxi51/mboot.c32
+	APPEND -c /esxi51/boot.cfg
+	MENU LABEL ESXi 5.1 Manual Install
+	
+label ESX1-5
+	KERNEL /esxi51/mboot.c32
+	APPEND -c /esxi51/Besx11-5.cfg
+	MENU LABEL Host11 Automated Install
+
+Label ESX2-5
+	KERNEL /esxi51/mboot.c32
+	APPEND -c /esxi51/Besx12-5.cfg
+	MENU LABEL Host12 Automated Install
+

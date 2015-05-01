@@ -1,0 +1,89 @@
+Create Login vpx WITH PASSWORD = 'VMware1!'
+Go
+create Database vCenter
+Go
+use vCenter
+go
+sp_addrolemember @rolename = 'db_owner', @membername = 'vpx'
+go
+use MSDB
+go
+sp_addrolemember @rolename = 'db_owner', @membername = 'vpx'
+go
+use master
+go
+sp_addrolemember @rolename = 'db_owner', @membername = 'vpx'
+go
+grant VIEW SERVER STATE to vpx
+go
+GRANT VIEW ANY DEFINITION TO vpx
+go
+create database VUM
+GO
+ALTER AUTHORIZATION ON DATABASE::vCenter TO vpx
+ALTER AUTHORIZATION ON DATABASE::VUM TO vpx
+ALTER AUTHORIZATION ON DATABASE::msdb TO vpx
+Go
+Create Login VMview WITH PASSWORD = 'VMware1!'
+Go
+create database ViewEvents
+GO
+create database ViewComposer
+GO
+ALTER AUTHORIZATION ON DATABASE::ViewEvents TO VMview
+ALTER AUTHORIZATION ON DATABASE::ViewComposer TO VMview
+go
+Create Login VMSRM WITH PASSWORD = 'VMware1!'
+Go
+create database SRM
+GO
+create database SRMRep
+GO
+ALTER AUTHORIZATION ON DATABASE::SRM TO VMSRM 
+ALTER AUTHORIZATION ON DATABASE::SRMRep TO VMSRM 
+Go
+EXEC master..sp_addsrvrolemember @loginame = 'lab\VI-admin', @rolename = 'sysadmin'
+Go
+EXEC master..sp_addsrvrolemember @loginame = 'lab\SVC_Veeam', @rolename = 'sysadmin'
+Go
+USE MASTER
+GO
+CREATE DATABASE RSA ON PRIMARY(
+NAME='RSA_DATA',
+FILENAME='C:\Program Files\Microsoft SQL Server\MSSQL10_50.SQLEXPRESS\MSSQL\DATA\RSA_DATA.mdf',
+SIZE=10MB,
+MAXSIZE=UNLIMITED,
+FILEGROWTH=10%),
+FILEGROUP RSA_INDEX(
+NAME='RSA_INDEX',
+FILENAME='C:\Program Files\Microsoft SQL Server\MSSQL10_50.SQLEXPRESS\MSSQL\DATA\RSA_INDEX.ndf',
+SIZE=10MB,
+MAXSIZE=UNLIMITED,
+FILEGROWTH=10%)
+LOG ON(
+NAME='translog',
+FILENAME='C:\Program Files\Microsoft SQL Server\MSSQL10_50.SQLEXPRESS\MSSQL\DATA\translog.ldf',
+SIZE=10MB,
+MAXSIZE=UNLIMITED,
+FILEGROWTH=10% )
+GO
+SP_DBOPTION 'RSA', 'autoshrink', true
+GO
+EXEC SP_DBOPTION 'RSA', 'trunc. log on chkpt.', true
+GO
+CHECKPOINT
+GO
+USE MASTER
+GO
+CREATE LOGIN RSA_DBA WITH PASSWORD = 'VMware1!', DEFAULT_DATABASE = RSA
+GO
+CREATE LOGIN RSA_USER WITH PASSWORD = 'VMware1!', DEFAULT_DATABASE = RSA
+GO
+USE RSA
+GO
+ALTER AUTHORIZATION ON DATABASE::RSA TO [RSA_DBA]
+GO
+CREATE USER RSA_USER FOR LOGIN [RSA_USER]
+GO
+CHECKPOINT
+GO

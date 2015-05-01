@@ -1,0 +1,21 @@
+# Disk DescriptorFile
+version=1
+encoding="UTF-8"
+CID=9da7cb2f
+parentCID=ffffffff
+isNativeSnapshot="no"
+createType="vmfs"
+
+# Extent description
+RW 65536 VMFS "TTYLinux-flat.vmdk"
+
+# The Disk Data Base 
+#DDB
+
+ddb.virtualHWVersion = "8"
+ddb.longContentID = "e043e0f2a20bce73ad8bd43f9da7cb2f"
+ddb.uuid = "60 00 C2 99 27 ac 5a 89-86 32 03 2e 95 a5 c9 8c"
+ddb.geometry.cylinders = "65"
+ddb.geometry.heads = "16"
+ddb.geometry.sectors = "63"
+ddb.adapterType = "ide"

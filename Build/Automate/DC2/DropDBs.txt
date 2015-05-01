@@ -1,0 +1,8 @@
+drop database vCenter
+go
+drop database SRM
+go
+drop database SRMRep
+go
+drop database RSA
+go

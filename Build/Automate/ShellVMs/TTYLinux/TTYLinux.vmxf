@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<Foundry>
+<VM>
+<VMId type="string">52 50 d3 d7 3c 32 c8 bf-7f 3a e4 f6 fe a3 2f c1</VMId>
+<ClientMetaData>
+<clientMetaDataAttributes/>
+<HistoryEventList/></ClientMetaData>
+<vmxPathName type="string">TTYLinux.vmx</vmxPathName></VM></Foundry>

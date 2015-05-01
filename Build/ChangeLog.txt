@@ -1,0 +1,74 @@
+Version 2.6
+- Support for vSphere 6.0
+- Nested 2012 Server VM
+- Larger NAS to accommodate larger nested VMs
+
+Version 2.0
+- Support for and default to Windows Server 2012 R2
+- Removed VLAN tagging, enables simpler deployment
+- Automated Certificate Authority setup
+- Support for user selected administrator passwords
+- Support for View 6.0
+
+Version 1.5
+- Added vSphere 5.5
+- Added View 5.2 & 5.3
+- Added Third ESXi and support for vSAN
+- Ground work for SRM support
+
+Version 1.1a
+- Added vCloud 5.1
+- Removed requirement for vSphere 5.0 for successful build
+- Multiple minor bug fixes
+- Moved windows builds build into Powershell
+
+Version 1.1
+- Added vSphere 5.1 build
+- Changed PXE boot menu structure
+- Added upgrade script
+- Chamged nested build to be simpler, added TTYLinux VM
+- NFS datastores
+- Removed requirement for specific Win2K8 ISO version
+- Build script creates nested OS install iso rather than using floppies, XP build includes VMware SCSI driver
+
+Version 1.0
+- Veeam, View & SRM Databases on DC
+- Firewall off in all network profuiles on VC and DC
+- Added View servers, CS1, CS2 & SS
+- Added Veeam Servers VBR & V1
+- Added vCloud Director VM & Damian's automation
+- Powershell menu script for VC server
+- Shutdown lab script to enumerate windows servers to shutdown
+- Make Validate script to auto elevate
+- Added PowerShell script to add built ESXi servers to rebuilt vCenter
+
+Version 0.8 31 May 2012
+- Win2K8R2 SP1 build support
+- deploy.cab extracted from WinInstall.ISO and used as source for sysprep files on vCenter
+- Different VC and DC boot floppies for Windows 2008 R2 RTM and SP1
+- Identify ESXi 5.0 vs ESXi5U1 and setup PXE differently
+- Shortcut to buildlog.txt on desktops for DC and VC
+- Add more checks to Validate script, global Pass Fail & launch build log on fail
+- Version specific PXE files in version folder
+- Desktop shortcut for validate script
+- Change Unattend folder to Automate folder & cleanup
+- AddHosts to register all found VMs
+- Use the SQLExpress installer from vCenter to install SQL Client on VC
+- Build.txt in VC & DC initial buld, change to buildlog.txt
+- Corrected router IP address in DHCP config
+- Warning message & confirmation in shutdown script
+- Publish hosts & VMA via SSH through router
+- Enable SSH on NAS & publish through router
+- Validate script to warn not error if 4.1 files missing
+- AddHosts to test for "run as administrator" & exit
+- VC Build accommodate VC 5.0 RTM SQLclient location
+- Copy of Shell VMs in NAS VM to allow distribution as single VM .ova for standalone ESXi compatibility.
+- ini file for automation level in automate folder
+- Insert Product key into WinInstall.flp
+- Timezone from automate file, apply to DC & VC
+- Fixed Boot order on Host2 VM
+- Host1 v4.1 build, first VM build broken
+- validate, cleanly cope with VUM service not installed
+
+Version 0.5 3 May 2012
+- First version, everything had changed.

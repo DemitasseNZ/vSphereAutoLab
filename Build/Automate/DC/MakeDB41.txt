@@ -1,0 +1,32 @@
+Create Login vpx WITH PASSWORD = 'VMware1!'
+Go
+create Database vCenter
+Go
+create database VUM
+GO
+ALTER AUTHORIZATION ON DATABASE::vCenter TO vpx
+ALTER AUTHORIZATION ON DATABASE::VUM TO vpx
+ALTER AUTHORIZATION ON DATABASE::msdb TO vpx
+Go
+Create Login VMview WITH PASSWORD = 'VMware1!'
+Go
+create database ViewEvents
+GO
+create database ViewComposer
+GO
+ALTER AUTHORIZATION ON DATABASE::ViewEvents TO VMview
+ALTER AUTHORIZATION ON DATABASE::ViewComposer TO VMview
+go
+Create Login VMSRM WITH PASSWORD = 'VMware1!'
+Go
+create database SRM
+GO
+create database SRMRep
+GO
+ALTER AUTHORIZATION ON DATABASE::SRM TO VMSRM 
+ALTER AUTHORIZATION ON DATABASE::SRMRep TO VMSRM 
+Go
+EXEC master..sp_addsrvrolemember @loginame = 'lab\VI-admin', @rolename = 'sysadmin'
+Go
+EXEC master..sp_addsrvrolemember @loginame = 'lab\SVC_Veeam', @rolename = 'sysadmin'
+Go

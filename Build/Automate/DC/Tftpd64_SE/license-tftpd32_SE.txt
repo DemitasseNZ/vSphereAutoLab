@@ -1,0 +1,1 @@
+TFTPD32 is copyrighted 1998-2011 by Philippe Jounin (philippe@jounin.net) and released under the European Union Public License (see file EUPL-EN.pdf).

@@ -1,0 +1,7 @@
+ENU TITLE ESX 4.1 installs
+
+LABEL Main Menu
+  MENU LABEL ^Return to Main Menu
+  KERNEL pxelinux.cfg/menu.c32
+  APPEND pxelinux.cfg/default
+  

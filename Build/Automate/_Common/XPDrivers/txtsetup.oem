@@ -1,0 +1,21 @@
+[Disks]
+disk = "VMware SCSI Controller Installation Disk", \disk.tag, \
+
+[Defaults]
+scsi	=	VMSCSI
+
+[scsi]
+VMSCSI	=	"VMware SCSI Controller"
+
+[Files.scsi.VMSCSI]
+driver	=	vmdisk, vmscsi.sys, VMSCSI
+inf	=	vmdisk, vmscsi.inf
+catalog	=	vmdisk, vmscsi.cat
+
+[Config.VMSCSI]
+value = "", Tag, REG_DWORD, 5
+value = Parameters\PnpInterface, 5 ,REG_DWORD, 1
+value = Parameters\Device, NumberOfRequests, REG_DWORD, 128
+
+[HardwareIds.scsi.VMSCSI]
+id	=	"PCI\VEN_104B&DEV_1040", "VMscsi"

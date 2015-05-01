@@ -1,0 +1,9 @@
+[DCInstall]
+InstallDNS = yes
+DomainNetBiosName = lab
+NewDomain=forest
+NewDomainDNSName = lab.local
+RebootOnCompletion = yes
+ReplicaOrNewDomain = Domain
+SiteName = "Lab"
+SafeModeAdminPassword="VMware1!"

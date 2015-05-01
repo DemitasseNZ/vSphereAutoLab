@@ -1,0 +1,58 @@
+;SetupMgrTag
+[UserData]
+    FullName="Lab"
+    OrgName="Lab Local"
+    ComputerName=Auto2K3
+    ProductID=xxxxx-xxxxx-xxxxx-xxxxx-xxxxx
+
+[GuiUnattended]
+    TimeZone=35
+    OEMSkipRegional=1
+    OemSkipWelcome=1
+    AdminPassword="VMware1!"
+    EncryptedAdminPassword=NO
+    AutoLogon=Yes
+    AutoLogonCount=99
+
+[Unattended]
+    Repartition=yes
+    DriverSigningPolicy=Ignore
+    UnattendMode=FullUnattended
+    FileSystem=ConvertNTFS
+    ExtendOemPartition=1
+    OemSkipEula=Yes
+    OemPreinstall=Yes
+	UnattendSwitch=Yes
+    TargetPath=\WINDOWS
+
+[GUIRunOnce]
+    Build="D:\Auto2K3.cmd"
+
+[Data]
+    AutoPartition=1
+    MsDosInitiated="0"
+    UnattendedInstall="Yes"
+    AutomaticUpdates="no"
+
+[Display]
+    BitsPerPel=32
+    Xresolution=800
+    YResolution=600
+    Vrefresh=75
+
+[LicenseFilePrintData]
+    AutoMode=PerSeat
+
+[Networking]
+    InstallDefaultComponents=Yes
+
+[Branding]
+    BrandIEUsingUnattended=Yes
+
+[Proxy]
+    Proxy_Enable=0
+    Use_Same_Proxy=0
+
+[Identification]
+    JoinWorkgroup=Lab
+

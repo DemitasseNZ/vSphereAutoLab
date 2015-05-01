@@ -1,0 +1,64 @@
+;SetupMgrTag
+[UserData]
+    FullName="Lab"
+    OrgName="Lab Local"
+    ComputerName=AutoXP
+    ProductID=xxxxx-xxxxx-xxxxx-xxxxx-xxxxx
+
+[GuiUnattended]
+    TimeZone=35
+    OemSkipWelcome=1
+    AdminPassword="VMware1!"
+    EncryptedAdminPassword=NO
+    AutoLogon=Yes
+    AutoLogonCount=99
+
+[Unattended]
+    Repartition=yes
+    DriverSigningPolicy=ignore
+    UnattendMode=FullUnattended
+    FileSystem=ConvertNTFS
+    ExtendOemPartition=1
+    OemSkipEula=Yes
+    OemPreinstall=no
+    UnattendSwitch=Yes
+    TargetPath=\WINDOWS
+    DUDisable=no
+
+[GUIRunOnce]
+    Build=D:\AutoXP.cmd
+
+[Data]
+    AutoPartition=1
+    MsDosInitiated="0"
+    UnattendedInstall="Yes"
+    AutomaticUpdates=no
+
+[Display]
+    BitsPerPel=32
+    Xresolution=800
+    YResolution=600
+    Vrefresh=75
+
+[Networking]
+    InstallDefaultComponents=Yes
+
+[Branding]
+    BrandIEUsingUnattended=Yes
+
+[Proxy]
+    Proxy_Enable=0
+    Use_Same_Proxy=0
+
+[Identification]
+    JoinWorkgroup=Lab
+
+[MassStorageDrivers]
+    "VMware SCSI Controller"=OEM
+	"IDE CD-ROM (ATAPI 1.2)/PCI IDE Controller" = "RETAIL"
+
+[OEMBootFiles]
+	txtsetup.oem
+	vmscsi.cat
+	vmscsi.inf
+	vmscsi.sys
