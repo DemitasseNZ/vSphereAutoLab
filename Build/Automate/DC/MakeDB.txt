@@ -44,8 +44,6 @@ ALTER AUTHORIZATION ON DATABASE::SRMRep TO VMSRM
 Go
 EXEC master..sp_addsrvrolemember @loginame = 'lab\VI-admin', @rolename = 'sysadmin'
 Go
-EXEC master..sp_addsrvrolemember @loginame = 'lab\SVC_Veeam', @rolename = 'sysadmin'
-Go
 USE MASTER
 GO
 CREATE DATABASE RSA ON PRIMARY(

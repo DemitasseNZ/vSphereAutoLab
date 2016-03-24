@@ -12,7 +12,3 @@ drop database SRMRep
 go
 drop database RSA
 go
-drop database vCloud51
-go
-drop database vCloud15
-go

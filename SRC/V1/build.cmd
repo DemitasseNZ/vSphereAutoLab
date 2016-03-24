@@ -1,1 +1,0 @@
-\\192.168.199.7\Build\automate\%computername%\Build.cmd

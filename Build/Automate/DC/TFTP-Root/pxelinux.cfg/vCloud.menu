@@ -1,6 +1,0 @@
-MENU TITLE vCloud installs
-
-LABEL Main Menu
-  MENU LABEL ^Return to Main Menu
-  KERNEL pxelinux.cfg/vesamenu.c32
-  APPEND pxelinux.cfg/default

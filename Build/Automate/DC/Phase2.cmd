@@ -1,4 +1,5 @@
 @echo off
+net use B: \\192.168.199.7\Build
 ver | find "6.1" > nul
 if %ERRORLEVEL% == 0 goto ver_2K8
 ver | find "6.2" > nul
@@ -20,6 +21,10 @@ Dism /online /enable-feature /featurename:DirectoryServices-DomainController /al
 Dism /online /enable-feature /featurename:DirectoryServices-AdministrativeCenter /all /quiet
 Dism /online /enable-feature /featurename:ActiveDirectory-PowerShell /all /quiet
 sc config dhcpserver start= auto
+regedit -s B:\Automate\_Common\ExecuPol.reg
+regedit -s B:\Automate\_Common\NoSCRNSave.reg
+regedit -s B:\Automate\_Common\ExplorerView.reg
+regedit -s b:\Automate\_Common\Nested.reg
 echo * Promote to DC
 echo * Promote to DC >> c:\buildlog.txt
 copy \\192.168.199.7\Build\Automate\DC\dcpromo.ps1 c:\
