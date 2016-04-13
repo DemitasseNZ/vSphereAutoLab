@@ -53,7 +53,6 @@ if ($CompName -eq "DC") {
 			}
 			net user  SVC_Veeam $AdminPWD >> C:\AD-Users.log 2>> C:\Error.log
 			net user  SVC_SRM $AdminPWD >> C:\AD-Users.log 2>> C:\Error.log
-			net user  SVC_vCD $AdminPWD >> C:\AD-Users.log 2>> C:\Error.log
 			net user DomUser $AdminPWD >> C:\AD-Users.log 2>> C:\Error.log 
 			net user vi-admin $AdminPWD >> C:\AD-Users.log 2>> C:\Error.log
 			net user administrator $AdminPWD >> C:\AD-Users.log 2>> C:\Error.log
@@ -246,9 +245,6 @@ if ($CompName -eq "DC") {
     Check-DNSRecord ("nas.lab.local")
     Check-DNSRecord ("host1.lab.local")
     Check-DNSRecord ("host2.lab.local")
-	Check-DNSRecord ("vcd.lab.local")
-	Check-DNSRecord ("vcd-proxy.lab.local")
-	Check-DNSRecord ("vshield.lab.local")
     Check-DNSRecord ("192.168.199.4")
     Check-DNSRecord ("192.168.199.5")
     Check-DNSRecord ("192.168.199.6")
@@ -328,9 +324,6 @@ if ($CompName -eq "DC2") {
     Check-DNSRecord ("nas.lab.local")
     Check-DNSRecord ("host1.lab.local")
     Check-DNSRecord ("host2.lab.local")
-	Check-DNSRecord ("vcd.lab.local")
-	Check-DNSRecord ("vcd-proxy.lab.local")
-	Check-DNSRecord ("vshield.lab.local")
     Check-DNSRecord ("192.168.199.4")
     Check-DNSRecord ("192.168.199.5")
     Check-DNSRecord ("192.168.199.6")

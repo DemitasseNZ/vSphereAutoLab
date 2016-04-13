@@ -102,6 +102,8 @@ if (Test-Path "B:\Automate\automate.ini") {
 	}
 	$AdminPWD = "VMware1!"
 	$AdminPWD = ((Select-String -SimpleMatch "Adminpwd=" -Path "B:\Automate\automate.ini").line).substring(9)
+	$emailto = ((Select-String -SimpleMatch "emailto=" -Path "B:\Automate\automate.ini").line).substring(8)
+	$SmtpServer = ((Select-String -SimpleMatch "SmtpServer=" -Path "B:\Automate\automate.ini").line).substring(11)
 } else {
 	Write-BuidLog "Unable to find B:\Automate\automate.ini. Where did it go?"
 }
@@ -646,6 +648,20 @@ If ($AutovCNS -eq "True"){
 Write-BuildLog "Installing VMware tools, build complete after reboot."
 if (Test-Path B:\VMTools\setup64.exe) {
 	#Read-Host "End of install checkpoint, before VMTools"
+	if (([bool]($emailto -as [Net.Mail.MailAddress])) -and ($SmtpServer -ne "none")){
+		$mailmessage = New-Object system.net.mail.mailmessage
+		$SMTPClient = New-Object Net.Mail.SmtpClient($SmtpServer, 25) 
+		$mailmessage.from = "AutoLab<autolab@labguides.com>"
+		$mailmessage.To.add($emailto)
+		$Summary = "Completed AutoLab VM build.`r`n"
+		$Summary += "The build of $env:computername has finished, installing VMware Tools and rebooting`r`n"
+		$Summary += "The build log is attached`r`n"
+		$mailmessage.Subject = "$env:computername VM build finished"
+		$mailmessage.Body = $Summary
+		$attach = new-object Net.Mail.Attachment("C:\buildlog.txt", 'text/plain') 
+		$mailmessage.Attachments.Add($attach) 
+		$SMTPClient.Send($mailmessage)
+	}
 	Start-Process B:\VMTools\setup64.exe -ArgumentList '/s /v "/qn"' -verb RunAs -Wait
 }
 

@@ -1,3 +1,6 @@
+Version xx
+- Added Email notification for VC & DC build. Specify destination address & SMTP server in autolmate.ini
+
 Version 2.6
 - Support for vSphere 6.0
 - Nested 2012 Server VM

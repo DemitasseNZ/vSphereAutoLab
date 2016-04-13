@@ -36,6 +36,23 @@ If ([string]::Compare($ReBuild, "Y", $True) -eq "0"){
 			exit
 		}
 	}
+	Write-host "Connect to Linux amchiunes to cache RSA Keys, say yes to all"
+	$ping = new-object System.Net.NetworkInformation.Ping
+	$Reply = $ping.send("192.168.199.254") 
+    if ($Reply.status –eq "Success") {
+        Write-Host " WAN" -foregroundcolor "Green"
+		cmd /c '"C:\Program Files (x86)\PuTTY\plink.exe" 192.168.199.254 -l root -pw VMware1! exit'
+		}
+    $Reply = $ping.send("gw") 
+    if (($Reply.status –eq "Success") -and (!((get-vmplatform) -ne "Ravello"))) {
+        Write-Host " Router" -foregroundcolor "Green"
+		cmd /c '"C:\Program Files (x86)\PuTTY\plink.exe" gw -l root -pw VMware1! exit'
+		}
+    $Reply = $ping.send("nas") 
+    if ($Reply.status –eq "Success") {
+        Write-Host " NAS" -foregroundcolor "Green"
+		cmd /c '"C:\Program Files (x86)\PuTTY\plink.exe" NAS -l root -pw VMware1! exit'
+		}
 	Write-Host "Connect to vCenter" -foregroundcolor "Green"
 	$null = connect-viserver vc.lab.local  -user administrator -password $AdminPWD
 	Write-Host "Shutdown any running VMs" -foregroundcolor "Green"
@@ -49,7 +66,6 @@ If ([string]::Compare($ReBuild, "Y", $True) -eq "0"){
 	ShutWinServ ("cs2.lab.local")
 	ShutWinServ ("v1.lab.local")
 	ShutWinServ ("vbr.lab.local")
-	$ping = new-object System.Net.NetworkInformation.Ping
     $Reply = $ping.send("vc2.lab.local") 
     if ($Reply.status –eq "Success") {
         Write-Host "Shutdown SRM Site" -foregroundcolor "Green"
@@ -75,11 +91,6 @@ If ([string]::Compare($ReBuild, "Y", $True) -eq "0"){
     if ($Reply.status –eq "Success") {
         Write-Host "Shutdown NAS" -foregroundcolor "Green"
 		cmd /c '"C:\Program Files (x86)\PuTTY\plink.exe" NAS -l root -pw VMware1! shutdown -h now'
-		}
-    $Reply = $ping.send("vcd") 
-    if ($Reply.status –eq "Success") {
-        Write-Host "Shutdown vCloud" -foregroundcolor "Green"
-		cmd /c '"C:\Program Files (x86)\PuTTY\plink.exe" vcd -l root -pw VMware1! shutdown -h now'
 		}
 	ShutWinServ ("dc2.lab.local")
 	ShutWinServ ("dc.lab.local")

@@ -37,6 +37,8 @@ if (Test-Path B:\Automate\automate.ini) {
 	Write-BuildLog "Change default local administrator password"
 	net user administrator $AdminPWD
 	B:\automate\_Common\Autologon administrator lab $AdminPWD
+	$emailto = ((Select-String -SimpleMatch "emailto=" -Path "B:\Automate\automate.ini").line).substring(8)
+	$SmtpServer = ((Select-String -SimpleMatch "SmtpServer=" -Path "B:\Automate\automate.ini").line).substring(11)
 } Else {
 	Write-BuildLog "Cannot find Automate.ini, this isn't a good sign"
 }
@@ -461,6 +463,7 @@ If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]:
 			Write-BuildLog "The version of SQL Management Studio on the Build share is incompatible with SQL Server 2008 Express R2 SP1. Please see ReadMe.html on the Build share."
 		} else {
 			Write-BuildLog "SQL Management Studio found; installing."
+			Install-WindowsFeature Net-Framework-Core
 			Start-Process B:\SQLManagementStudio_x64_ENU.exe -ArgumentList "/ACTION=INSTALL /IACCEPTSQLSERVERLICENSETERMS /FEATURES=Tools /q" -Wait -Verb RunAs
 		}
 	} else { Write-BuildLog "SQL Management Studio not found (optional)."}
@@ -531,19 +534,19 @@ if (Test-Path -Path "B:\VMTools\setup*") {
 		$vcinstall = ((Select-String -SimpleMatch "VCInstall=" -Path "B:\Automate\automate.ini").line).substring(10)
 		switch ($vcinstall) {
 			60 {
-			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/6.0/windows/VMware-tools-windows-9.10.0-2476743.iso -awget.log
+			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/6.0/windows/VMware-tools-windows-9.10.0-2476743.iso --no-check-certificate -awget.log
 			. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VMtools\ c:\temp\VMware-tools-windows-9.10.0-2476743.iso >> C:\ExtractLog.txt
 			Write-BuildLog "VMware Tools V6.0 Downloaded and extracted to build share."
 			} 	55 {
-			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/5.5u2/windows/VMware-tools-windows-9.4.10-2068191.iso -awget.log
+			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/5.5u2/windows/VMware-tools-windows-9.4.10-2068191.iso --no-check-certificate -awget.log
 			. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VMtools\ c:\temp\VMware-tools-windows-9.4.10-2068191.iso >> C:\ExtractLog.txt
 			Write-BuildLog "VMware Tools V5.5u2 Downloaded and extracted to build share."
 			}	51 {
-			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/5.1u3/windows/x64/VMware-tools-windows-9.0.15-2323214.iso -awget.log
+			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/5.1u3/windows/x64/VMware-tools-windows-9.0.15-2323214.iso --no-check-certificate -awget.log
 			. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VMtools\ c:\temp\VMware-tools-windows-9.0.15-2323214.iso >> C:\ExtractLog.txt
 			Write-BuildLog "VMware Tools V5.1u3 Downloaded and extracted to build share."
 			}	50 {
-			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/5.0u3/windows/x64/VMware-tools-windows-8.6.11-1310128.iso -awget.log
+			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/5.0u3/windows/x64/VMware-tools-windows-8.6.11-1310128.iso --no-check-certificate -awget.log
 			. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VMtools\ c:\temp\VMware-tools-windows-8.6.11-1310128.iso >> C:\ExtractLog.txt
 			Write-BuildLog "VMware Tools V5.0u3 Downloaded and extracted to build share."
 			}
@@ -558,7 +561,22 @@ if (Test-Path -Path "B:\VMTools\setup*") {
 if (($vmtools) -and (-Not (Test-Path "C:\Program Files\VMware\VMware Tools\VMwareToolboxCmd.exe"))) {
 	Write-BuildLog "Installing VMware tools, build complete after reboot."
 	Write-BuildLog "(Re)build vCenter next."
+	if (([bool]($emailto -as [Net.Mail.MailAddress])) -and ($SmtpServer -ne "none")){
+		$mailmessage = New-Object system.net.mail.mailmessage
+		$SMTPClient = New-Object Net.Mail.SmtpClient($SmtpServer, 25) 
+		$mailmessage.from = "AutoLab<autolab@labguides.com>"
+		$mailmessage.To.add($emailto)
+		$Summary = "Completed AutoLab VM build.`r`n"
+		$Summary += "The build of $env:computername has finished, installing VMware Tools and rebooting`r`n"
+		$Summary += "The build log is attached`r`n"
+		$mailmessage.Subject = "$env:computername VM build finished"
+		$mailmessage.Body = $Summary
+		$attach = new-object Net.Mail.Attachment("C:\buildlog.txt", 'text/plain') 
+		$mailmessage.Attachments.Add($attach) 
+		$message.Attachments.Add($attach) 
+		$SMTPClient.Send($mailmessage)
+	}
 	Start-Process B:\VMTools\setup64.exe -ArgumentList '/s /v "/qn"' -verb RunAs -Wait
-	Start-Sleep -Seconds 5
+	Start-Sleep -Seconds 300
 }
 Read-Host "Press <ENTER> to exit"
