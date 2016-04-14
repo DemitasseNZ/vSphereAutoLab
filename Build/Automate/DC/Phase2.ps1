@@ -100,10 +100,10 @@ $TempContent | Set-Content B:\Automate\Hosts\esx12-5.cfg
  
 Write-BuildLog "Checking for vSphere files..."
 if (Test-Path "B:\ESXi60\*") {
-	if (Test-Path "B:\ESXi60\*.iso") {
+	if ((Test-Path "B:\ESXi60\*.iso") -and !(Test-Path "B:\ESXi60\BOOT.CFG") ){
 		Write-BuildLog "Extracting ESXi 6.0 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\ESXi60\ B:\ESXi60\*.iso >> C:\ExtractLog.txt
-	}
+	} Else 
 	Write-BuildLog "ESXi 6.0 found; creating C:\TFTP-Root\ESXi60 and copying ESXi 6.0 boot files."
 	$null = $null = New-Item -Path C:\TFTP-Root\ESXi60 -ItemType Directory -Force -Confirm:$false
 	xcopy B:\ESXi60\*.* C:\TFTP-Root\ESXi60 /s /c /y /q
@@ -124,7 +124,7 @@ if (Test-Path "B:\ESXi60\*") {
 }
 
 if (Test-Path "B:\ESXi55\*") {
-	if (Test-Path "B:\ESXi55\*.iso") {
+	if ((Test-Path "B:\ESXi55\*.iso")  -and !(Test-Path "B:\ESXi55\BOOT.CFG") ){
 		Write-BuildLog "Extracting ESXi 5.5 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\ESXi55\ B:\ESXi55\*.iso >> C:\ExtractLog.txt
 	}
@@ -148,7 +148,7 @@ if (Test-Path "B:\ESXi55\*") {
 }
 
 if (Test-Path "B:\ESXi51\*") {
-	if (Test-Path "B:\ESXi51\*.iso") {
+	if ((Test-Path "B:\ESXi51\*.iso")  -and !(Test-Path "B:\ESXi51\BOOT.CFG") ) {
 		Write-BuildLog "Extracting ESXi 5.1 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\ESXi51\ B:\ESXi51\*.iso >> C:\ExtractLog.txt
 	}
@@ -172,7 +172,7 @@ if (Test-Path "B:\ESXi51\*") {
 }
 
 if (Test-Path "B:\ESXi50\*") {
-	if (Test-Path "B:\ESXi50\*.iso") {
+	if ((Test-Path "B:\ESXi50\*.iso")  -and !(Test-Path "B:\ESXi50\BOOT.CFG") ) {
 		Write-BuildLog "Extracting ESXi 5.0 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\ESXi50\ B:\ESXi50\*.iso >> C:\ExtractLog.txt
 	}
@@ -196,7 +196,7 @@ if (Test-Path "B:\ESXi50\*") {
 }
 
 if (Test-Path "B:\ESXi41\*") {
-	if (Test-Path "B:\ESXi41\*.iso") {
+	if ((Test-Path "B:\ESXi41\*.iso")  -and !(Test-Path "B:\ESXi41\BOOT.CAT") ) {
 		Write-BuildLog "Extracting ESXi 4.1 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\ESXi41\ B:\ESXi41\*.iso >> C:\ExtractLog.txt
 	}
@@ -218,7 +218,7 @@ if (Test-Path "B:\ESXi41\*") {
 }
 
 if (Test-Path "B:\ESX41\*") {
-	if (Test-Path "B:\ESX41\*.iso") {
+	if ((Test-Path "B:\ESX41\*.iso")  -and !(Test-Path "B:\ESX41\packages.xml") ) {
 		Write-BuildLog "Extracting ESX 4.1 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\ESX41\ B:\ESX41\*.iso >> C:\ExtractLog.txt
 	}
@@ -242,7 +242,7 @@ if (!($esx41 -or $esxi41 -or $esxi50 -or $esxi51 -or $esxi55 -or $esxi60)) {
 }
 Write-BuildLog "Checking for vCenter files..."
 if (Test-Path "B:\VIM_60\*") {
-	if (Test-Path "B:\VIM_60\*.iso") {
+	if ((Test-Path "B:\VIM_60\*.iso") -and !(Test-Path "B:\VIM_60\autorun.exe")){
 		Write-BuildLog "Extracting vCenter 6.0 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VIM_60\ B:\VIM_60\*.iso >> C:\ExtractLog.txt
 	}
@@ -252,7 +252,7 @@ if (Test-Path "B:\VIM_60\*") {
 	$vCenter60 = $false
 }
 if (Test-Path "B:\VIM_55\*") {
-	if (Test-Path "B:\VIM_55\*.iso") {
+	if ((Test-Path "B:\VIM_55\*.iso") -and !(Test-Path "B:\VIM_55\autorun.exe")){
 		Write-BuildLog "Extracting vCenter 5.5 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VIM_55\ B:\VIM_55\*.iso >> C:\ExtractLog.txt
 	}
@@ -262,7 +262,7 @@ if (Test-Path "B:\VIM_55\*") {
 	$vCenter55 = $false
 }
 if (Test-Path "B:\VIM_51\*") {
-	if (Test-Path "B:\VIM_51\*.iso") {
+	if ((Test-Path "B:\VIM_51\*.iso") -and !(Test-Path "B:\VIM_51\autorun.exe")) {
 		Write-BuildLog "Extracting vCenter 5.1 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VIM_51\ B:\VIM_51\*.iso >> C:\ExtractLog.txt
 	}
@@ -273,7 +273,7 @@ if (Test-Path "B:\VIM_51\*") {
 }
 
 if (Test-Path "B:\VIM_50\*") {
-	if (Test-Path "B:\VIM_50\*.iso") {
+	if ((Test-Path "B:\VIM_50\*.iso") -and !(Test-Path "B:\VIM_50\autorun.exe")) {
 		Write-BuildLog "Extracting vCenter 5.0 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VIM_50\ B:\VIM_50\*.iso >> C:\ExtractLog.txt
 	}
@@ -284,7 +284,7 @@ if (Test-Path "B:\VIM_50\*") {
 }
 
 if (Test-Path "B:\VIM_41\*") {
-	if (Test-Path "B:\VIM_41\*.iso") {
+	if ((Test-Path "B:\VIM_41\*.iso") -and !(Test-Path "B:\VIM_41\autorun.exe")) {
 		Write-BuildLog "Extracting vCenter 4.1 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VIM_41\ B:\VIM_41\*.iso >> C:\ExtractLog.txt
 	}
