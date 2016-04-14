@@ -48,8 +48,8 @@
       "workflow.int.jmx-port" : 19999,
       "workflow.int.service-port" : 8088
    },
-   "clientlocale" : "en",
-   "db.clobber" : null,
+   "clientlocale" : "yes",
+   "db.clobber" : "yes",
    "db.dsn" : "vCenterDB",
    "db.password" : "VMware1!",
    "db.type" : "external",

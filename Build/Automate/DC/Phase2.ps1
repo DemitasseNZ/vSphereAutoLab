@@ -103,7 +103,7 @@ if (Test-Path "B:\ESXi60\*") {
 	if ((Test-Path "B:\ESXi60\*.iso") -and !(Test-Path "B:\ESXi60\BOOT.CFG") ){
 		Write-BuildLog "Extracting ESXi 6.0 installer from ISO."
 		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\ESXi60\ B:\ESXi60\*.iso >> C:\ExtractLog.txt
-	} Else 
+	}  
 	Write-BuildLog "ESXi 6.0 found; creating C:\TFTP-Root\ESXi60 and copying ESXi 6.0 boot files."
 	$null = $null = New-Item -Path C:\TFTP-Root\ESXi60 -ItemType Directory -Force -Confirm:$false
 	xcopy B:\ESXi60\*.* C:\TFTP-Root\ESXi60 /s /c /y /q

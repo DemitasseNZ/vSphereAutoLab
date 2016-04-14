@@ -92,14 +92,6 @@ if (Test-Path "B:\Automate\automate.ini") {
 	} else {
 		$AutoAddHosts = $false
 	}
-	$AutoVCNS = "false"
-	$AutoVCNS = ((Select-String -SimpleMatch "AutoVCNS=" -Path "B:\Automate\automate.ini").line).substring(9)
-	if ($AutoVCNS -like "true") {
-		$AutoVCNS = $true
-		Write-BuildLog "  vShield Manager will be automatically deployed"
-	} else {
-		$AutoVCNS = $false
-	}
 	$AdminPWD = "VMware1!"
 	$AdminPWD = ((Select-String -SimpleMatch "Adminpwd=" -Path "B:\Automate\automate.ini").line).substring(9)
 	$emailto = ((Select-String -SimpleMatch "emailto=" -Path "B:\Automate\automate.ini").line).substring(8)
@@ -633,17 +625,6 @@ If (($AutoAddHosts -eq "True") -and (Test-Path "c:\Addhosts.ps1")){
 	Write-BuildLog "Automatically running AddHosts script."
 	Write-BuildLog " "
 	Start-Process c:\windows\syswow64\WindowsPowerShell\v1.0\powershell.exe -ArgumentList " C:\AddHosts.ps1" -wait
-}
-If ($AutovCNS -eq "True"){
-	Write-BuildLog "vShield"
-	If (($VCInstall -eq "51") -and (Test-Path "C:\vShield51.ps1")) {
-	Write-BuildLog "Automatically deploying vShield 5.1."
-		Start-Process c:\windows\syswow64\WindowsPowerShell\v1.0\powershell.exe -ArgumentList " C:\vShield51.ps1" -wait
-	}
-	If (($VCInstall -eq "5") -and (Test-Path "C:\vShield15.ps1")) {
-	Write-BuildLog "Automatically deploying vShield 5.0."
-	. "C:\vShield15.ps1"
-	}
 }
 Write-BuildLog "Installing VMware tools, build complete after reboot."
 if (Test-Path B:\VMTools\setup64.exe) {
