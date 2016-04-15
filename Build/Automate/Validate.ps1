@@ -168,7 +168,9 @@ if ($CompName -eq "DC") {
 	if (Test-Path "b:\VMware-PowerCLI-5*.exe") {
 		If (($vSphere50 -and ((Get-ChildItem B:\VMware-PowerCLI-*.exe | where {$_.VersionInfo.ProductVersion -like "5.0*"}) -eq $Null))) {Write-Host "vSphere 5.0 found, matching PowerCLI version missing. Please check the Build share." -foregroundcolor "Yellow"}
 		If (($vSphere51 -and ((Get-ChildItem B:\VMware-PowerCLI-*.exe | where {$_.VersionInfo.ProductVersion -like "5.1*"}) -eq $Null))) {Write-Host "vSphere 5.1 found, matching PowerCLI version missing. Please check the Build share." -foregroundcolor "Yellow"}
-		If (($vSphere55 -and (((Get-ChildItem B:\VMware-PowerCLI-*.exe | where {$_.VersionInfo.ProductVersion -like "5.5*"}) -eq $Null) -or !((Get-ChildItem B:\VMware-PowerCLI-*.exe | where {$_.VersionInfo.ProductVersion -like "5.8*"}) -eq $Null)))) {Write-Host "vSphere 5.5 found, matching PowerCLI version missing. Please check the Build share." -foregroundcolor "Yellow"}
+		If (($vSphere55 -and (((Get-ChildItem B:\VMware-PowerCLI-*.exe | where {$_.VersionInfo.ProductVersion -like "5.5*"}) -eq $Null) -and ((Get-ChildItem B:\VMware-PowerCLI-*.exe | where {$_.VersionInfo.ProductVersion -like "5.8*"}) -eq $Null)))) {Write-Host "vSphere 5.5 found, matching PowerCLI version missing. Please check the Build share." -foregroundcolor "Yellow"}
+		If (($vSphere60 -and (((Get-ChildItem B:\VMware-PowerCLI-*.exe | where {$_.VersionInfo.ProductVersion -like "5.8*"}) -eq $Null) -and  ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -le 62)))) {Write-Host "vSphere 6.0 on Windows 2008 found, matching PowerCLI version 5.8 missing. Please check the Build share." -foregroundcolor "Yellow"}
+		If (($vSphere60 -and (((Get-ChildItem B:\VMware-PowerCLI-*.exe | where {$_.VersionInfo.ProductVersion -like "6*"}) -eq $Null) -and  ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62)))) {Write-Host "vSphere 6.0 on Windows 2012 found, matching PowerCLI version 6 missing. Please check the Build share." -foregroundcolor "Yellow"}
 	} 
 	Check-OptionalFile "\\192.168.199.7\Build\Win2K3.iso" "Windows Server 2003 ISO"
 	Check-OptionalFile "\\192.168.199.7\Build\WinXP.iso" "Windows XP ISO"
@@ -207,6 +209,19 @@ if ($CompName -eq "DC") {
 		Write-Host "ESXi 5.1 TFTP files not found on DC, but they exist on Build share." -foregroundcolor "red"
 		$Global:Pass = $false
 	}
+	if ($ESXi55 -and (Test-Path "C:\TFTP-Root\ESXi515\*")) {
+		Write-Host "ESXi 5.5 TFTP files found." -foregroundcolor "green"
+	} elseif ($ESXi55 -and !(Test-Path "C:\TFTP-Root\ESXi55\*")) {
+		Write-Host "ESXi 5.5 TFTP files not found on DC, but they exist on Build share." -foregroundcolor "red"
+		$Global:Pass = $false
+	}
+	if ($ESXi60 -and (Test-Path "C:\TFTP-Root\ESXi60\*")) {
+		Write-Host "ESXi 6.0 TFTP files found." -foregroundcolor "green"
+	} elseif ($ESXi60 -and !(Test-Path "C:\TFTP-Root\ESXi60\*")) {
+		Write-Host "ESXi 6.0 TFTP files not found on DC, but they exist on Build share." -foregroundcolor "red"
+		$Global:Pass = $false
+	}
+
 	$vcinstall = ((Select-String -SimpleMatch "VCInstall=" -Path "B:\Automate\automate.ini").line).substring(10)
 	If ($vcinstall -eq "50") {$vcinstall = "5"}
 	If (!($vSphere50) -and ($vcinstall -eq "5")) {
@@ -221,6 +236,10 @@ if ($CompName -eq "DC") {
 		Write-Host "You wish to install vSphere 5.5 but the installers aren't on the build share"  -foregroundcolor "red"
 		$Global:Pass = $false
 	}    
+	If (!($vSphere60) -and ($vcinstall -eq "60")) {
+		Write-Host "You wish to install vSphere 6.0 but the installers aren't on the build share"  -foregroundcolor "red"
+		$Global:Pass = $false
+	} 	
 	Write-Host "Check Domain" -foregroundcolor "cyan"
     $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain() 
     if ($domain.Name -eq "lab.local") {
@@ -289,6 +308,9 @@ if ($CompName -eq "VC") {
 			if ($VCVer.StartsWith("6")) {
 				if ((((Select-String -SimpleMatch "DeployVUM=" -Path "B:\Automate\automate.ini").line).substring(10)) -like "true") {Check-ServiceRunning "VMware vSphere Update Manager Service"}
 				Check-ServiceRunning "VMware VirtualCenter Server"
+				Check-ServiceRunning "VMware vSphere Web Client"
+				Check-ServiceRunning "VMware Directory Service"
+				Check-ServiceRunning "VMware vSphere Profile-Driven Storage Service"
 			}
 		}
 		

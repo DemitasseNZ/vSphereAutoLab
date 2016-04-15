@@ -14,6 +14,8 @@ if (Test-Path "B:\Automate\automate.ini") {
 	Write-BuildLog "  Timezone set to $timezone."
 	tzutil /s "$timezone"
 	$AdminPWD = ((Select-String -SimpleMatch "Adminpwd=" -Path "B:\Automate\automate.ini").line).substring(9)
+	$emailto = ((Select-String -SimpleMatch "emailto=" -Path "B:\Automate\automate.ini").line).substring(8)
+	$SmtpServer = ((Select-String -SimpleMatch "SmtpServer=" -Path "B:\Automate\automate.ini").line).substring(11)
 }
 If (([System.Environment]::OSVersion.Version.Major -eq 6) -and ([System.Environment]::OSVersion.Version.Minor -ge 2)) {
 	Write-BuildLog "Disabling autorun of ServerManager at logon."
@@ -79,6 +81,21 @@ copy $Installer C:\
 reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run /v Build /t REG_SZ /d "cmd /c c:\Build.cmd" /f  >> c:\buildlog.txt
 Write-BuildLog "Install VMware Tools"
 b:\VMTools\Setup64.exe /s /v "/qn"
+if (([bool]($emailto -as [Net.Mail.MailAddress])) -and ($SmtpServer -ne "none")){
+	$mailmessage = New-Object system.net.mail.mailmessage
+	$SMTPClient = New-Object Net.Mail.SmtpClient($SmtpServer, 25) 
+	$mailmessage.from = "AutoLab<autolab@labguides.com>"
+	$mailmessage.To.add($emailto)
+	$Summary = "Completed AutoLab VM build.`r`n"
+	$Summary += "The build of $env:computername has finished, installing VMware Tools and rebooting`r`n"
+	$Summary += "The build log is attached`r`n"
+	$mailmessage.Subject = "$env:computername VM build finished"
+	$mailmessage.Body = $Summary
+	$attach = new-object Net.Mail.Attachment("C:\buildlog.txt", 'text/plain') 
+	$mailmessage.Attachments.Add($attach) 
+	$message.Attachments.Add($attach) 
+	$SMTPClient.Send($mailmessage)
+}
 Read-Host "Reboot?"
 
 

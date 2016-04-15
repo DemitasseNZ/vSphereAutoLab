@@ -454,16 +454,15 @@ if (Test-Path "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe")
 	}
 }
 If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -le 62)) {
+	Write-BuildLog "Doing Windows Server 2008 specific build actions"
 	if (Test-Path B:\sqlmsssetup.exe) {
 		Rename-Item B:\sqlmsssetup.exe SQLManagementStudio_x64_ENU.exe
 	}
-
 	if (Test-Path B:\SQLManagementStudio_x64_ENU.exe) {
 		if ( (!(Get-ChildItem B:\SQLManagementStudio_x64_ENU.exe).VersionInfo.ProductVersion -like "10.50.2500*") -and ($vc6SQL -or $vc5SQL -or $vc4SQL)) {
 			Write-BuildLog "The version of SQL Management Studio on the Build share is incompatible with SQL Server 2008 Express R2 SP1. Please see ReadMe.html on the Build share."
 		} else {
 			Write-BuildLog "SQL Management Studio found; installing."
-			Install-WindowsFeature Net-Framework-Core
 			Start-Process B:\SQLManagementStudio_x64_ENU.exe -ArgumentList "/ACTION=INSTALL /IACCEPTSQLSERVERLICENSETERMS /FEATURES=Tools /q" -Wait -Verb RunAs
 		}
 	} else { Write-BuildLog "SQL Management Studio not found (optional)."}
@@ -478,6 +477,7 @@ If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]:
 	}
 }
 If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62)) {
+	Write-BuildLog "Doing Windows Server 2012 specific build actions"
 	Write-BuildLog "Disabling autorun of ServerManager at logon."
 	Start-Process schtasks -ArgumentList ' /Change /TN "\Microsoft\Windows\Server Manager\ServerManager" /DISABLE'  -Wait -Verb RunAs
 	Write-BuildLog "Disabling screen saver"
