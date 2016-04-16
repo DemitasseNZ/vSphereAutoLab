@@ -22,6 +22,8 @@ If (([System.Environment]::OSVersion.Version.Major -eq 6) -and ([System.Environm
 	Start-Process schtasks -ArgumentList ' /Change /TN "\Microsoft\Windows\Server Manager\ServerManager" /DISABLE'  -Wait -Verb RunAs
 	Write-BuildLog "Disabling screen saver"
 	set-ItemProperty -path 'HKCU:\Control Panel\Desktop' -name ScreenSaveActive -value 0
+	Write-BuildLog "Install admin tools"
+	Add-WindowsFeature RSAT-Feature-Tools,RSAT-DHCP,RSAT-DNS-Server,RSAT-AD-AdminCenter
 }
 if (Test-Path "C:\VMware-view*") {
 	$Files = get-childitem "C:\"
@@ -91,7 +93,7 @@ if (([bool]($emailto -as [Net.Mail.MailAddress])) -and ($SmtpServer -ne "none"))
 	$Summary += "The build log is attached`r`n"
 	$mailmessage.Subject = "$env:computername VM build finished"
 	$mailmessage.Body = $Summary
-	$attach = new-object Net.Mail.Attachment("C:\buildlog.txt", 'text/plain') 
+	$attach = new-object Net.Mail.Attachment("C:\buildlog.txt") 
 	$mailmessage.Attachments.Add($attach) 
 	$message.Attachments.Add($attach) 
 	$SMTPClient.Send($mailmessage)

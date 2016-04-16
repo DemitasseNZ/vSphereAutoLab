@@ -453,7 +453,7 @@ if (Test-Path "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe")
 		exit
 	}
 }
-If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -le 62)) {
+If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -le 61)) {
 	Write-BuildLog "Doing Windows Server 2008 specific build actions"
 	if (Test-Path B:\sqlmsssetup.exe) {
 		Rename-Item B:\sqlmsssetup.exe SQLManagementStudio_x64_ENU.exe
@@ -571,7 +571,7 @@ if (($vmtools) -and (-Not (Test-Path "C:\Program Files\VMware\VMware Tools\VMwar
 		$Summary += "The build log is attached`r`n"
 		$mailmessage.Subject = "$env:computername VM build finished"
 		$mailmessage.Body = $Summary
-		$attach = new-object Net.Mail.Attachment("C:\buildlog.txt", 'text/plain') 
+		$attach = new-object Net.Mail.Attachment("C:\buildlog.txt") 
 		$mailmessage.Attachments.Add($attach) 
 		$message.Attachments.Add($attach) 
 		$SMTPClient.Send($mailmessage)

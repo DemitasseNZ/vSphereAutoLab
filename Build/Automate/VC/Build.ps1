@@ -639,7 +639,7 @@ if (Test-Path B:\VMTools\setup64.exe) {
 		$Summary += "The build log is attached`r`n"
 		$mailmessage.Subject = "$env:computername VM build finished"
 		$mailmessage.Body = $Summary
-		$attach = new-object Net.Mail.Attachment("C:\buildlog.txt", 'text/plain') 
+		$attach = new-object Net.Mail.Attachment("C:\buildlog.txt") 
 		$mailmessage.Attachments.Add($attach) 
 		$SMTPClient.Send($mailmessage)
 	}
