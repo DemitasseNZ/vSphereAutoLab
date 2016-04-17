@@ -24,6 +24,9 @@ If (([System.Environment]::OSVersion.Version.Major -eq 6) -and ([System.Environm
 	set-ItemProperty -path 'HKCU:\Control Panel\Desktop' -name ScreenSaveActive -value 0
 	Write-BuildLog "Install admin tools"
 	Add-WindowsFeature RSAT-Feature-Tools,RSAT-DHCP,RSAT-DNS-Server,RSAT-AD-AdminCenter
+	Write-BuildLog "Enable remote management through firewall"
+	Netsh firewall set service RemoteAdmin
+	Netsh advfirewall set currentprofile settings remotemanagement enable
 }
 $Files = get-childitem "b:\view$viewinstall"
 for ($i=0; $i -lt $files.Count; $i++) {

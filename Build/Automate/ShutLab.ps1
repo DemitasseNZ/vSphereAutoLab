@@ -36,7 +36,7 @@ If ([string]::Compare($ReBuild, "Y", $True) -eq "0"){
 			exit
 		}
 	}
-	Write-host "Connect to Linux amchiunes to cache RSA Keys, say yes to all"
+	Write-host "Connect to Linux machines to cache RSA Keys, say yes to all"
 	$ping = new-object System.Net.NetworkInformation.Ping
 	$Reply = $ping.send("192.168.199.254") 
     if ($Reply.status –eq "Success") {

@@ -368,6 +368,8 @@ dnscmd localhost /RecordAdd lab.local Host4 A 192.168.199.14 >> C:\DNS.log
 dnscmd localhost /RecordAdd lab.local CS1 A 192.168.199.33 >> C:\DNS.log
 dnscmd localhost /RecordAdd lab.local CS2 A 192.168.199.34 >> C:\DNS.log
 dnscmd localhost /RecordAdd lab.local SS A 192.168.199.35 >> C:\DNS.log
+dnscmd localhost /RecordAdd lab.local v1 A 192.168.199.36 >> C:\DNS.log
+dnscmd localhost /RecordAdd lab.local vbr A 192.168.199.37 >> C:\DNS.log
 dnscmd localhost /RecordAdd lab.local DC2 A 192.168.201.4 >> C:\DNS.log
 dnscmd localhost /RecordAdd lab.local VC2 A 192.168.201.5 >> C:\DNS.log
 dnscmd localhost /RecordAdd lab.local Host11 A 192.168.201.11 >> C:\DNS.log
@@ -383,6 +385,8 @@ dnscmd localhost /RecordAdd 199.168.192.in-addr.arpa 14 PTR Host4.lab.local >> C
 dnscmd localhost /RecordAdd 199.168.192.in-addr.arpa 33 PTR cs1.lab.local >> C:\DNS.log
 dnscmd localhost /RecordAdd 199.168.192.in-addr.arpa 34 PTR cs2.lab.local >> C:\DNS.log
 dnscmd localhost /RecordAdd 199.168.192.in-addr.arpa 35 PTR SS.lab.local >> C:\DNS.log
+dnscmd localhost /RecordAdd 199.168.192.in-addr.arpa 36 PTR v1.lab.local >> C:\DNS.log
+dnscmd localhost /RecordAdd 199.168.192.in-addr.arpa 37 PTR vbr.lab.local >> C:\DNS.log
 dnscmd localhost /RecordAdd 201.168.192.in-addr.arpa 4 PTR DC2.lab.local >> C:\DNS.log
 dnscmd localhost /RecordAdd 201.168.192.in-addr.arpa 5 PTR VC2.lab.local >> C:\DNS.log
 dnscmd localhost /RecordAdd 201.168.192.in-addr.arpa 11 PTR Host11.lab.local >> C:\DNS.log
