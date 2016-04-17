@@ -453,11 +453,11 @@ if (Test-Path "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe")
 		exit
 	}
 }
+if (Test-Path B:\sqlmsssetup.exe) {
+	Rename-Item B:\sqlmsssetup.exe SQLManagementStudio_x64_ENU.exe
+}
 If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -le 61)) {
 	Write-BuildLog "Doing Windows Server 2008 specific build actions"
-	if (Test-Path B:\sqlmsssetup.exe) {
-		Rename-Item B:\sqlmsssetup.exe SQLManagementStudio_x64_ENU.exe
-	}
 	if (Test-Path B:\SQLManagementStudio_x64_ENU.exe) {
 		if ( (!(Get-ChildItem B:\SQLManagementStudio_x64_ENU.exe).VersionInfo.ProductVersion -like "10.50.2500*") -and ($vc6SQL -or $vc5SQL -or $vc4SQL)) {
 			Write-BuildLog "The version of SQL Management Studio on the Build share is incompatible with SQL Server 2008 Express R2 SP1. Please see ReadMe.html on the Build share."
@@ -466,7 +466,6 @@ If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]:
 			Start-Process B:\SQLManagementStudio_x64_ENU.exe -ArgumentList "/ACTION=INSTALL /IACCEPTSQLSERVERLICENSETERMS /FEATURES=Tools /q" -Wait -Verb RunAs
 		}
 	} else { Write-BuildLog "SQL Management Studio not found (optional)."}
-
 	Write-BuildLog "Setup IIS on Windows 2008"
 	Start-Process pkgmgr -ArgumentList '/quiet /l:C:\IIS_Install_Log.txt /iu:IIS-WebServerRole;IIS-WebServer;IIS-CommonHttpFeatures;IIS-StaticContent;IIS-DefaultDocument;IIS-DirectoryBrowsing;IIS-HttpErrors;IIS-HttpRedirect;IIS-ApplicationDevelopment;IIS-ASPNET;IIS-NetFxExtensibility;IIS-ASP;IIS-CGI;IIS-ISAPIExtensions;IIS-ISAPIFilter;IIS-ServerSideIncludes;IIS-HealthAndDiagnostics;IIS-HttpLogging;IIS-LoggingLibraries;IIS-RequestMonitor;IIS-HttpTracing;IIS-CustomLogging;IIS-ODBCLogging;IIS-Security;IIS-BasicAuthentication;IIS-WindowsAuthentication;IIS-DigestAuthentication;IIS-ClientCertificateMappingAuthentication;IIS-IISCertificateMappingAuthentication;IIS-URLAuthorization;IIS-RequestFiltering;IIS-IPSecurity;IIS-Performance;IIS-HttpCompressionStatic;IIS-HttpCompressionDynamic;IIS-WebServerManagementTools;IIS-ManagementConsole;IIS-ManagementScriptingTools;IIS-ManagementService;IIS-IIS6ManagementCompatibility;IIS-Metabase;IIS-WMICompatibility;IIS-LegacyScripts;IIS-LegacySnapIn;IIS-FTPPublishingService;IIS-FTPServer;IIS-FTPManagement;WAS-WindowsActivationService;WAS-ProcessModel;WAS-NetFxEnvironment;WAS-ConfigurationAPI' -Wait 
 	Write-BuildLog "Setup Certificate Authority & web enrollment."	
@@ -483,7 +482,15 @@ If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]:
 	Write-BuildLog "Disabling screen saver"
 	set-ItemProperty -path 'HKCU:\Control Panel\Desktop' -name ScreenSaveActive -value 0
 	Write-BuildLog "Installing Administration tools."
-	Install-WindowsFeature –Name RSAT-DHCP,RSAT-DNS-Server
+	Install-WindowsFeature –Name RSAT-DHCP,RSAT-DNS-Server,Net-Framework-Core
+	if (Test-Path B:\SQLManagementStudio_x64_ENU.exe) {
+		if ( (!(Get-ChildItem B:\SQLManagementStudio_x64_ENU.exe).VersionInfo.ProductVersion -like "10.50.2500*") -and ($vc6SQL -or $vc5SQL -or $vc4SQL)) {
+			Write-BuildLog "The version of SQL Management Studio on the Build share is incompatible with SQL Server 2008 Express R2 SP1. Please see ReadMe.html on the Build share."
+		} else {
+			Write-BuildLog "SQL Management Studio found; installing."
+			Start-Process B:\SQLManagementStudio_x64_ENU.exe -ArgumentList "/ACTION=INSTALL /IACCEPTSQLSERVERLICENSETERMS /FEATURES=Tools /q" -Wait -Verb RunAs
+		}
+	} else { Write-BuildLog "SQL Management Studio not found (optional)."}
 	Write-BuildLog "Setup IIS on Windows 2012"
 	import-module servermanager
 	If (Test-Path "D:\Sources\sxs\*") {$null = add-windowsfeature web-server -includeallsubfeature -source D:\Sources\sxs}
