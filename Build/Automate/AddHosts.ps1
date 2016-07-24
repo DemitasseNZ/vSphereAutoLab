@@ -339,6 +339,7 @@ If ($SRM -ne $True){
 	if ($CreateDS) {
 		Write-BuildLog "Creating iSCSI datastores."  
 		$iSCSILUNs = get-scsilun -vmhost $VMHost -CanonicalName "t10.*"
+		if ($iSCSILUNs -eq $Null) {$iSCSILUNs = get-scsilun -vmhost $VMHost -CanonicalName "naa.*"}
 		if ($vmhostobj.version.split(".")[0] -ne "4") {
 			if (((Get-Datastore | where {$_.Name -eq "iSCSI1"}) -eq $null) ) {
 				$null = New-Datastore -VMHost $VMHost -Name iSCSI1 -Path $iSCSILUNs[0].CanonicalName -Vmfs -FileSystemVersion 5
