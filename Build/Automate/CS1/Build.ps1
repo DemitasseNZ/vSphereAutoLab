@@ -29,6 +29,7 @@ If (([System.Environment]::OSVersion.Version.Major -eq 6) -and ([System.Environm
 	Netsh firewall set service RemoteAdmin
 	Netsh advfirewall set currentprofile settings remotemanagement enable
 }
+
 $Files = get-childitem "b:\view$viewinstall"
 for ($i=0; $i -lt $files.Count; $i++) {
 	If ($Files[$i].Name -like "VMware-viewconnectionserver*") {$Installer = $Files[$i].FullName}
@@ -59,6 +60,12 @@ Switch ($ViewInstall) {
 	}
 	60 {
 		Write-BuildLog "Install View 6.0 Connection Server"
+		copy $Installer C:\ViewInstaller.exe
+		Start-Process C:\ViewInstaller.exe  -wait -ArgumentList '/s /v"/qn VDM_SERVER_INSTANCE_TYPE=1 FWCHOICE=1 VDM_INITIAL_ADMIN_SID=S-1-5-32-544 VDM_SERVER_RECOVERY_PWD=VMware1 VDM_SERVER_RECOVERY_PWD_REMINDER=First"'
+		C:\Windows\Microsoft.NET\Framework64\v2.0.50727\InstallUtil.exe "C:\Program Files\VMware\VMware View\Server\bin\PowershellServiceCmdlets.dll" >> c:\buildLog.txt
+	}
+	70 {
+		Write-BuildLog "Install View 7.0 Connection Server"
 		copy $Installer C:\ViewInstaller.exe
 		Start-Process C:\ViewInstaller.exe  -wait -ArgumentList '/s /v"/qn VDM_SERVER_INSTANCE_TYPE=1 FWCHOICE=1 VDM_INITIAL_ADMIN_SID=S-1-5-32-544 VDM_SERVER_RECOVERY_PWD=VMware1 VDM_SERVER_RECOVERY_PWD_REMINDER=First"'
 		C:\Windows\Microsoft.NET\Framework64\v2.0.50727\InstallUtil.exe "C:\Program Files\VMware\VMware View\Server\bin\PowershellServiceCmdlets.dll" >> c:\buildLog.txt

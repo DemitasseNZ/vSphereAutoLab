@@ -111,7 +111,10 @@ if (Test-Path "C:\VMware-viewcomposer*") {
 		If ($Files[$i].Name -like "VMware-viewcomposer*") {$Installer = $Files[$i].FullName}
 	}
 	switch ($viewinstall) {
-		60 {
+		70 {
+			Write-BuildLog "Installing VMware View 7.0 Composer"
+			Start-Process $Installer -ArgumentList '/s /v" /qn AgreeToLicense="Yes" DB_USERNAME="VMview" DB_PASSWORD="VMware1!" DB_DSN="ViewComposer" REBOOT="ReallySuppress" "' -Wait -Verb RunAs
+		}		60 {
 			Write-BuildLog "Installing VMware View 6.0 Composer"
 			Start-Process $Installer -ArgumentList '/s /v" /qn AgreeToLicense="Yes" DB_USERNAME="VMview" DB_PASSWORD="VMware1!" DB_DSN="ViewComposer" REBOOT="ReallySuppress" "' -Wait -Verb RunAs
 		}	53 {
@@ -464,7 +467,14 @@ If ($viewinstall -ne "None") {
 	}
 }
 switch ($viewinstall) {
-	60 {
+	70 {
+		if (Test-Path "B:\View70\VMware-viewcomposer-*.exe") {
+			Write-BuildLog "Setup install VMware View 7.0 Composer, reboot required before install"
+			copy-item $Installer C:\
+			Write-BuildLog "Setup script recall for Phase 2 completion"
+			reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce /v Build /t REG_SZ /d "cmd /c c:\Build.cmd" /f  >> c:\buildlog.txt
+		}
+	}	60 {
 		if (Test-Path "B:\View60\VMware-viewcomposer-*.exe") {
 			Write-BuildLog "Setup install VMware View 6.0 Composer, reboot required before install"
 			copy-item $Installer C:\

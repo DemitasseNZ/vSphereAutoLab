@@ -115,6 +115,7 @@ if (Test-Path "B:\ESXi60\*") {
 	Add-Content C:\TFTP-Root\ESXi60\Besx3-60.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi60\BOOT.CFG | %{$_ -replace "/","/ESXi60/"} | Set-Content C:\TFTP-Root\ESXi60\Besx4-60.cfg
 	Add-Content C:\TFTP-Root\ESXi60\\Besx4-60.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi60\BOOT.CFG | %{$_ -replace "/","/ESXi60/"} | Set-Content C:\TFTP-Root\ESXi60\BOOT.CFG
 	powershell C:\PXEMenuConfig.ps1 ESXi60
 	Write-BuildLog "ESXi 6.0 added to TFTP and PXE menu."
 	Write-BuildLog ""
@@ -139,6 +140,7 @@ if (Test-Path "B:\ESXi55\*") {
 	Add-Content C:\TFTP-Root\ESXi55\Besx3-55.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi55\BOOT.CFG | %{$_ -replace "/","/ESXi55/"} | Set-Content C:\TFTP-Root\ESXi55\Besx4-55.cfg
 	Add-Content C:\TFTP-Root\ESXi55\\Besx4-55.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi55\BOOT.CFG | %{$_ -replace "/","/ESXi55/"} | Set-Content C:\TFTP-Root\ESXi55\BOOT.CFG
 	powershell C:\PXEMenuConfig.ps1 ESXi55
 	Write-BuildLog "ESXi 5.5 added to TFTP and PXE menu."
 	Write-BuildLog ""
@@ -163,6 +165,7 @@ if (Test-Path "B:\ESXi51\*") {
 	Add-Content C:\TFTP-Root\ESXi51\Besx3-5.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi51\BOOT.CFG | %{$_ -replace "/","/ESXi51/"} | Set-Content C:\TFTP-Root\ESXi51\Besx4-5.cfg
 	Add-Content C:\TFTP-Root\ESXi51\Besx4-5.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi51\BOOT.CFG | %{$_ -replace "/","/ESXi51/"} | Set-Content C:\TFTP-Root\ESXi51\BOOT.CFG
 	powershell C:\PXEMenuConfig.ps1 ESXi51
 	Write-BuildLog "ESXi 5.1 added to TFTP and PXE menu."
 	Write-BuildLog ""
@@ -187,6 +190,7 @@ if (Test-Path "B:\ESXi50\*") {
 	Add-Content C:\TFTP-Root\ESXi50\Besx3-5.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi50\BOOT.CFG | %{$_ -replace "/","/ESXi50/"} | Set-Content C:\TFTP-Root\ESXi50\Besx4-5.cfg
 	Add-Content C:\TFTP-Root\ESXi50\Besx4-5.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi50\BOOT.CFG | %{$_ -replace "/","/ESXi50/"} | Set-Content C:\TFTP-Root\ESXi50\BOOT.CFG
 	powershell C:\PXEMenuConfig.ps1 ESXi50
 	Write-BuildLog "ESXi 5.0 added to TFTP and PXE menu."
 	Write-BuildLog ""
@@ -240,6 +244,20 @@ if (!($esx41 -or $esxi41 -or $esxi50 -or $esxi51 -or $esxi55 -or $esxi60)) {
 	Write-BuildLog "Restart this machine when Build share is available; build will proceed after restart."
 	exit
 }
+
+if (Test-Path "B:\gParted\*") {
+	Write-BuildLog "Adding gParted to PXE build"
+	$null = $null = New-Item -Path C:\TFTP-Root\gParted -ItemType Directory -Force -Confirm:$false
+	xcopy B:\gParted\*.* C:\TFTP-Root\gParted /s /c /y /q
+			Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
+
+LABEL gParted
+  MENU LABEL gParted utility
+  kernel gparted/vmlinuz
+  append initrd=gparted/initrd.img boot=live config components union=overlay username=user noswap noeject ip= vga=788 fetch=tftp://192.168.199.4/gparted/filesystem.squashfs
+"@
+}
+
 Write-BuildLog "Checking for vCenter files..."
 if (Test-Path "B:\VIM_60\*") {
 	if ((Test-Path "B:\VIM_60\*.iso") -and !(Test-Path "B:\VIM_60\autorun.exe")){

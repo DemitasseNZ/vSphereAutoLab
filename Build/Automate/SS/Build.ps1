@@ -28,6 +28,7 @@ If (([System.Environment]::OSVersion.Version.Major -eq 6) -and ([System.Environm
 	Netsh firewall set service RemoteAdmin
 	Netsh advfirewall set currentprofile settings remotemanagement enable
 }
+
 $Files = get-childitem "b:\view$viewinstall"
 for ($i=0; $i -lt $files.Count; $i++) {
 	If ($Files[$i].Name -like "VMware-viewconnectionserver*") {$Installer = $Files[$i].FullName}
@@ -57,6 +58,11 @@ Switch ($ViewInstall) {
 		Write-BuildLog "Install View 6.0 Security Server"
 		copy $Installer C:\ViewInstaller.exe
 		Start-Process C:\ViewInstaller.exe  -wait -ArgumentList '/s /v"/qn VDM_SERVER_INSTANCE_TYPE=3 VDM_SERVER_NAME=cs1.lab.local VDM_SERVER_SS_EXTURL=https://SS.lab.local:443 VDM_SERVER_SS_PWD=VMware1! VDM_SERVER_SS_PCOIP_IPADDR=192.168.199.35 VDM_SERVER_SS_PCOIP_TCPPORT=4172 VDM_SERVER_SS_PCOIP_UDPPORT=4172"'
+	}
+	70 {
+		Write-BuildLog "Install View 7.0 Security Server"
+		copy $Installer C:\ViewInstaller.exe
+		Start-Process C:\ViewInstaller.exe  -wait -ArgumentList '/s /v"/qn VDM_SERVER_INSTANCE_TYPE=3 VDM_SERVER_NAME=cs1.lab.local VDM_SERVER_SS_EXTURL=https://SS.lab.local:443 VDM_SERVER_SS_PWD=VMware1! VDM_SERVER_SS_PCOIP_IPADDR=192.168.199.35 VDM_SERVER_SS_PCOIP_TCPPORT=4172 VDM_SERVER_SS_PCOIP_UDPPORT=4172"' -verb RunAs
 	}
 }
 Write-BuildLog "Install Flash Player"

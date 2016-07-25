@@ -28,12 +28,18 @@ If (([System.Environment]::OSVersion.Version.Major -eq 6) -and ([System.Environm
 	Netsh firewall set service RemoteAdmin
 	Netsh advfirewall set currentprofile settings remotemanagement enable
 }
+
 if (Test-Path "C:\VMware-view*") {
 	$Files = get-childitem "C:\"
 	for ($i=0; $i -lt $files.Count; $i++) {
 		If ($Files[$i].Name -like "VMware-view*") {$Installer = $Files[$i].FullName}
 	}
 	switch ($viewinstall) {
+		70 {
+			Write-BuildLog "Install View 7.0 Connection Server"
+			Start-Process $Installer -wait -ArgumentList '/s /v"/qn VDM_SERVER_INSTANCE_TYPE=2 ADAM_PRIMARY_NAME=cs1.lab.local"'  -verb RunAs
+			C:\Windows\Microsoft.NET\Framework64\v2.0.50727\InstallUtil.exe "C:\Program Files\VMware\VMware View\Server\bin\PowershellServiceCmdlets.dll" >> c:\buildLog.txt
+		}
 		60 {
 			Write-BuildLog "Install View 6.0 Connection Server"
 			Start-Process $Installer -wait -ArgumentList '/s /v"/qn VDM_SERVER_INSTANCE_TYPE=2 ADAM_PRIMARY_NAME=cs1.lab.local"'

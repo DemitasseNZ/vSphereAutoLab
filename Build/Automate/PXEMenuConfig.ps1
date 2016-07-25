@@ -27,7 +27,7 @@ switch ($version) {
 		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 6.0 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
-LABEL Fixes Menu
+LABEL ESXi 60
   MENU LABEL ESXi 6.0 automated builds
   KERNEL pxelinux.cfg/menu.c32
   APPEND pxelinux.cfg/ESXi60.menu
@@ -41,7 +41,7 @@ LABEL Fixes Menu
 		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 5.5 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
-LABEL Fixes Menu
+LABEL ESXi 5.5
   MENU LABEL ESXi 5.5 automated builds
   KERNEL pxelinux.cfg/menu.c32
   APPEND pxelinux.cfg/ESXi55.menu
@@ -55,7 +55,7 @@ LABEL Fixes Menu
 		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 5.1 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
-LABEL Fixes Menu
+LABEL ESXi 5.1
   MENU LABEL ESXi 5.1 automated builds
   KERNEL pxelinux.cfg/menu.c32
   APPEND pxelinux.cfg/ESXi51.menu
@@ -69,7 +69,7 @@ LABEL Fixes Menu
 		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 5.0 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
-LABEL Fixes Menu
+LABEL ESXi 5.0
   MENU LABEL ESXi 5.0 automated builds
   KERNEL pxelinux.cfg/menu.c32
   APPEND pxelinux.cfg/ESXi50.menu
@@ -81,7 +81,7 @@ LABEL Fixes Menu
 		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 4.1 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
-LABEL Fixes Menu
+LABEL ESXi 4.1
   MENU LABEL ESXi 4.1 automated builds
   KERNEL pxelinux.cfg/menu.c32
   APPEND pxelinux.cfg/ESXi41.menu
@@ -117,7 +117,7 @@ label esx2-4
 			Add-Content -Path "C:\buildlog.txt" -Value "Adding vCloud option to PXE menu"
 			Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
-LABEL Fixes Menu
+LABEL vCloud
   MENU LABEL vCloud Director automated build
   KERNEL pxelinux.cfg/menu.c32
   APPEND pxelinux.cfg/vCloud.menu
