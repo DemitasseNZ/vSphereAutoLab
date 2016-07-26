@@ -602,7 +602,6 @@ if (($vmtools) -and (-Not (Test-Path "C:\Program Files\VMware\VMware Tools\VMwar
 		$mailmessage.Body = $Summary
 		$attach = new-object Net.Mail.Attachment("C:\buildlog.txt") 
 		$mailmessage.Attachments.Add($attach) 
-		$message.Attachments.Add($attach) 
 		$SMTPClient.Send($mailmessage)
 	}
 	Start-Process B:\VMTools\setup64.exe -ArgumentList '/s /v "/qn"' -verb RunAs -Wait

@@ -103,8 +103,7 @@ if (([bool]($emailto -as [Net.Mail.MailAddress])) -and ($SmtpServer -ne "none"))
 	$mailmessage.Subject = "$env:computername VM build finished"
 	$mailmessage.Body = $Summary
 	$attach = new-object Net.Mail.Attachment("C:\buildlog.txt") 
-	$mailmessage.Attachments.Add($attach) 
-	$message.Attachments.Add($attach) 
+	$mailmessage.Attachments.Add($attach)  
 	$SMTPClient.Send($mailmessage)
 }
 Read-Host "Reboot?"

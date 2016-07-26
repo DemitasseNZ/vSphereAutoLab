@@ -94,7 +94,6 @@ if (([bool]($emailto -as [Net.Mail.MailAddress])) -and ($SmtpServer -ne "none"))
 	$mailmessage.Body = $Summary
 	$attach = new-object Net.Mail.Attachment("C:\buildlog.txt") 
 	$mailmessage.Attachments.Add($attach) 
-	$message.Attachments.Add($attach) 
 	$SMTPClient.Send($mailmessage)
 }
 Read-Host "Rebooting after VMTools Install"
