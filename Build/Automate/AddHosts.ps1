@@ -11,22 +11,11 @@ if (Test-Path C:\PSFunctions.ps1) {
 	Read-Host "Press <Enter> to exit"	
 	exit
 }
-#if ((Test-Administrator) -and (Test-Path "C:\Program Files\VMware\VMware Tools\VMwareToolboxCmd.exe")) {
-#    Write-BuildLog " "
-#    Write-BuildLog "This script should not be 'Run As Administrator'" 
-#    Write-BuildLog " "
-#    Write-BuildLog "Just double click the shortcut" 
-#    Write-BuildLog " "
-#	Read-Host "Press <Enter> to exit"	
-#	exit
-#}
 $a = (Get-Host).UI.RawUI
 $b = $a.WindowSize
 $b.Height = $a.MaxWindowSize.Height -1 
 $a.WindowSize = $b
-# WASP is a 64bit plugin, the Guest Cust. PowerCLI commands are only 32bit
-#import-module C:\windows\system32\WASP.dll
-#select-window -Title "Administrator: C:\*" | set-windowposition -left 3 -top 3
+
 
 $Subnet = ((Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPEnabled=TRUE -ComputerName .).IPAddress[0]).split(".")[2]
 If ($Subnet -eq "199") {
@@ -44,18 +33,18 @@ If ($Subnet -eq "201") {
 	$SRM = $True
 }
 
-if ((Get-Service vpxd).Status -eq "Starting") {
+if ((Get-Service vpxd -ErrorAction SilentlyContinue).Status -eq "Starting") {
 	Write-BuildLog "The vCenter service is still starting; script will pause until service has started."
 	do {
 		Start-Sleep -Seconds 30
 	} until ((Get-Service vpxd).Status -eq "Running")
-} elseif ((Get-Service vpxd).Status -eq "Stopped") {
+} elseif ((Get-Service vpxd -ErrorAction SilentlyContinue).Status -eq "Stopped") {
 	Write-BuildLog "The vCenter service is stopped. Please verify the DC VM is powered on and databases have started."
 	Read-Host "Press <Enter> to exit"
 	exit
 }
 
-if ((Get-PSSnapin -Name VMware.VimAutomation.Core -ErrorAction SilentlyContinue) -eq $null) {
+if (((Get-PSSnapin -Name VMware.VimAutomation.Core -ErrorAction SilentlyContinue) -eq $null) -and ((Get-Module -Name VMware.VimAutomation.Core -ErrorAction SilentlyContinue) -eq $null)) {
 	try {
 		Write-BuildLog "Loading PowerCLI plugin, this may take a little while." 
 		Add-PSSnapin VMware.VimAutomation.Core
@@ -65,6 +54,10 @@ if ((Get-PSSnapin -Name VMware.VimAutomation.Core -ErrorAction SilentlyContinue)
 		Read-Host "Press <Enter> to exit"
 		exit
 	}
+} else {
+		$p += ";C:\Program Files (x86)\VMware\Infrastructure\PowerCLI\Modules"
+		[Environment]::SetEnvironmentVariable("PSModulePath",$p)
+		Import-Module "VMware.VimAutomation.Core"  -ErrorAction SilentlyContinue
 }
 for ($i=1;$i -le 4; $i++) {
     $vmhost = "$HostPrefix$i.lab.local"
@@ -77,11 +70,10 @@ for ($i=1;$i -le 4; $i++) {
 	}
 }
 If (!($MaxHosts -ge 2)){
-	Write-Host "Couldn't find first two hosts to build, need host1 & host2 built before running this script"
+	Write-BuildLog "Couldn't find first two hosts to build, need host1 & host2 built before running this script"
 	Read-Host "Build the hosts & rerun this script"
 	Exit
 }
-Write-BuildLog " "
 If (!(Test-Path "B:\*")) { Net use B: \\nas\Build}
 if (Test-Path "B:\Automate\automate.ini") {
 	Write-BuildLog "Determining automate.ini settings."  
@@ -91,21 +83,21 @@ if (Test-Path "B:\Automate\automate.ini") {
 	$createxp = ((Select-String -SimpleMatch "BuildViewVM=" -Path "B:\Automate\automate.ini").line).substring(12).Trim()
 	if ($createds -like "true") {
 		$createds = $true
-		Write-BuildLog " Datastores will be built and added to vCenter." 
+		Write-BuildLog "Datastores will be built and added to vCenter." 
 	} else {
 		$createds = $false
 	}
 	if ($createvm -like "true") {
 		$createvm = $true
 		$ProdKey = ((Select-String -SimpleMatch "ProductKey=" -Path "B:\Automate\automate.ini" -List).line).substring(11).Trim()
-		Write-BuildLog "  Windows 2003 VM for Lab will be created." 
+		Write-BuildLog "Windows 2003 VM for Lab will be created." 
 	} else {
 		$createvm = $false
 	}
 	if ($createxp -like "true") {
 		$createxp = $true
 		$XPKey = ((Select-String -SimpleMatch "ViewVMProductKey=" -Path "B:\Automate\automate.ini").line).substring(17)
-		Write-BuildLog " Windows XP VM for VMware View Lab to be built." 
+		Write-BuildLog "Windows XP VM for VMware View Lab to be built." 
 	} else {
 		$createxp = $false
 	}
@@ -196,9 +188,7 @@ for ($i=1;$i -le $MaxHosts; $i++) {
 		}			
         Start-Sleep 5
 		While ((Get-VMHost $VMHost).ConnectionState -ne "Connected"){
-            Write-BuildLog " "
             Write-BuildLog $VMHost " is not yet connected. Pausing for 5 seconds."
-            Write-BuildLog " "
 			Start-Sleep 5
 			}
 		$VMHostObj = Get-VMHost $VMHost
@@ -274,7 +264,7 @@ for ($i=1;$i -le $MaxHosts; $i++) {
 
 Write-BuildLog "Restarting all hosts for consistency. This will take a few minutes."  
 $null = Get-VMHost -location $ClusterName | Restart-VMHost -confirm:$false -Force
-Write-Host "Wait until all hosts have stopped pinging"
+Write-BuildLog "Wait until all hosts have stopped pinging"
 $PingStatus = @()
 for ($i=1;$i -le $MaxHosts; $i++) {$PingStatus +=$True}
 do {
@@ -291,7 +281,7 @@ do {
 		If ($PingStatus[$I-1] -eq $True) {$StayHere = $True}
 	}
 } while ($StayHere)
-Write-Host "Wait until all hosts are pinging"
+Write-BuildLog "Wait until all hosts are pinging"
 do {
 	Start-Sleep -Seconds 1
 	$ping = new-object System.Net.NetworkInformation.Ping
@@ -306,7 +296,7 @@ do {
 		If ($PingStatus[$I-1] -eq $False) {$StayHere = $True}
 	}
 } while ($StayHere)
-Write-Host "Wait until all hosts are Connected"
+Write-BuildLog "Wait until all hosts are Connected"
 for ($i=1;$i -le $MaxHosts; $i++) {$PingStatus +=$False}
 do {
 	Start-Sleep -Seconds 1
@@ -321,7 +311,7 @@ do {
 		If ($PingStatus[$I-1] -eq $False) {$StayHere = $True}
 	}
 } while ($StayHere)
-Write-Host "Wait 2 minutes so last host is properly up"
+Write-BuildLog "Wait 2 minutes so last host is properly up"
 start-sleep 120
 If ($SRM -ne $True){
 	if (((Get-OSCustomizationSpec | where {$_.Name -eq "Windows"}) -eq $null) -and ($ProdKey -ne $null) ){
@@ -378,131 +368,144 @@ If ($SRM -ne $True){
 	$Cluster = Get-View $Cluster
 	$null = $Cluster.ReconfigureComputeResource_Task($spec, $true)
 	Write-BuildLog "Waiting two minutes for HA to complete configuration." 
+	$Datastore = Get-Datastore -VMhost $vmHost -name "NFS01"	
 	Start-Sleep -Seconds 120
-	
+	if (!(Get-PSDrive -Name NFS01 -ErrorAction "SilentlyContinue")) {
+		$null = New-PSDrive -Name NFS01 -PSProvider ViMdatastore -Root '\' -Location $Datastore
+	}
 	$VMHostObj = Get-VMHost $VMHost
-	$VMName="Template2012"
-	if (($CreateVM) -and ((Get-VM -name $VMName -ErrorAction "SilentlyContinue") -eq $null ) -and (test-path "\\192.168.199.7\build\Win2012.ISO")) {
-		$Datastore = Get-Datastore -VMhost $vmHost -name "NFS01"	
-		Start-Sleep -Seconds 2
-		if (!(Get-PSDrive -Name NFS01 -ErrorAction "SilentlyContinue")) {
-			$null = New-PSDrive -Name NFS01 -PSProvider ViMdatastore -Root '\' -Location $Datastore
-		}
-		#Create new VM if existing VM or template doesn't exist
-		if (!(Test-Path NFS01:\$VMName\$VMName.vmdk)) {
-			Write-BuildLog "Creating Template2012 VM as Windows Server 2012"  
-			If ((Get-vmhost)[0].version -lt "5.5.0"){
-				$MyVM = New-VM -Name $VMName -VMhost $vmHost -datastore $Datastore -NumCPU 1 -MemoryMB 768 -DiskMB 16384 -DiskStorageFormat Thin -GuestID windows8Server64Guest 
-				get-networkadapter $MyVM |set-networkadapter -type e1000 -confirm:$false 
-			} Else {
-				$MyVM = New-VM -Name $VMName -VMhost $vmHost -datastore $Datastore -NumCPU 1 -MemoryMB 768 -DiskMB 16384 -DiskStorageFormat Thin -GuestID windows8Server64Guest -Version "v8"
+	$HostVer = (([int]((($VMHostObj.Version.Split("."))[0])) *10) + [int]($VMHostObj.Version.Split("."))[1])
+	foreach ($os in ("2016","2012", "2008", "2K3", "10", "8", "7", "XP")){
+		$VMName=("Template" + $OS)
+		if (($CreateVM) -and ((Get-VM -name $VMName -ErrorAction "SilentlyContinue") -eq $null ) -and (test-path ("\\192.168.199.7\build\Win" + $OS + ".iso"))) {
+			#Create new VM if existing VM or template doesn't exist
+			if (!(Test-Path NFS01:\$VMName\$VMName.vmdk)) {
+				$Go = $False
+				Switch ($OS) {
+					"2016" {
+						$GuestID = "windows9Server64Guest"
+						$GuestRAM = 768
+						$GuestHDD = 16384
+						$GuestMinHost = 60
+						$GuestMaxHost = 99
+						if (($HostVer -ge $GuestMinHost) -and ($HostVer -le $GuestMaxHost)) {
+							$Go = $True
+							$VMHWVer = "v11"
+						}
+					}"2012" {
+						$GuestID = "windows8Server64Guest"
+						$GuestRAM = 768
+						$GuestHDD = 16384
+						$GuestMinHost = 50
+						$GuestMaxHost = 99
+						if (($HostVer -ge $GuestMinHost) -and ($HostVer -le $GuestMaxHost)) {
+							$Go = $True
+							$VMHWVer = "v8"
+						}
+					}  "2008" {
+						$GuestID = "windows7Server64Guest"
+						$GuestRAM = 768
+						$GuestHDD = 16384
+						$GuestMinHost = 40
+						$GuestMaxHost = 99
+						if (($HostVer -ge $GuestMinHost) -and ($HostVer -le $GuestMaxHost)) {
+							$Go = $True
+							$VMHWVer = "v7"
+						}
+					} "2K3" {
+						$GuestID = "winNetStandard64Guest"
+						$GuestRAM = 384
+						$GuestHDD = 3072
+						$GuestMinHost = 30
+						$GuestMaxHost = 99
+						if (($HostVer -ge $GuestMinHost) -and ($HostVer -le $GuestMaxHost)) {
+							$Go = $True
+							$VMHWVer = "v7"
+						}
+					} "10" {
+						$GuestID = "windows9_64Guest"
+						$GuestRAM = 768
+						$GuestHDD = 16384
+						$GuestMinHost = 60
+						$GuestMaxHost = 99
+						if (($HostVer -ge $GuestMinHost) -and ($HostVer -le $GuestMaxHost)) {
+							$Go = $True
+							$VMHWVer = "v11"
+						}
+					} "8" {
+						$GuestID = "windows8_64Guest"
+						$GuestRAM = 768
+						$GuestHDD = 16384
+						$GuestMinHost = 50
+						$GuestMaxHost = 99
+						if (($HostVer -ge $GuestMinHost) -and ($HostVer -le $GuestMaxHost)) {
+							$Go = $True
+							$VMHWVer = "v8"
+						}
+					} "7" {
+						$GuestID = "windows7_64Guest"
+						$GuestRAM = 768
+						$GuestHDD = 16384
+						$GuestMinHost = 40
+						$GuestMaxHost = 99
+						if (($HostVer -ge $GuestMinHost) -and ($HostVer -le $GuestMaxHost)) {
+							$Go = $True
+							$VMHWVer = "v7"
+						}
+					} "XP" {
+						$GuestID = "winXPProGuest"
+						$GuestRAM = 384
+						$GuestHDD = 3072
+						$GuestMinHost = 30
+						$GuestMaxHost = 60
+						if (($HostVer -ge $GuestMinHost) -and ($HostVer -le $GuestMaxHost)) {
+							$Go = $True
+							$VMHWVer = "v7"
+						}
+					}
+				}
+				If ($Go) {
+					If ((Get-vmhost)[0].version -lt "5.5.0"){
+						Write-BuildLog "Creating $VMName VM as Windows $OS" 
+						$MyVM = New-VM -Name $VMName -VMhost $vmHost -datastore $Datastore -NumCPU 1 -MemoryMB $GuestRAM -DiskMB $GuestHDD -DiskStorageFormat Thin -GuestID $GuestID 
+						get-networkadapter $MyVM |set-networkadapter -type e1000 -confirm:$false 
+					} Else {
+						Write-BuildLog "Creating $VMName VM as Windows $OS" 
+						$MyVM = New-VM -Name $VMName -VMhost $vmHost -datastore $Datastore -NumCPU 1 -MemoryMB $GuestRAM -DiskMB $GuestHDD -DiskStorageFormat Thin -GuestID $GuestID -Version $VMHWVer
+					}
+					$BuildISO = "[Build]/Auto" + $OS + ".iso"
+					if (test-path ("\\192.168.199.7\build\Auto" + $OS + ".iso")) {
+						$null = New-CDDrive -VM $MyVM -ISOPath $BuildISO -StartConnect
+					} else {
+						$BuildISO = "[Build]/Win" + $OS + ".iso"
+						$null = New-CDDrive -VM $MyVM -ISOPath $BuildISO -StartConnected
+						$null = New-FloppyDrive -VM $MyVM -FloppyImagePath ("[Build] Automate/BootFloppies/Nested" + $OS + ".flp") -StartConnected
+					}
+					$strBootHDiskDeviceName = "Hard disk 1"
+					$viewVM = Get-View -ViewType VirtualMachine -Property Name, Config.Hardware.Device -Filter @{"Name" = "^$VMName$"}
+					$intHDiskDeviceKey = ($viewVM.Config.Hardware.Device | ?{$_.DeviceInfo.Label -eq $strBootHDiskDeviceName}).Key
+					$oBootableHDisk = New-Object -TypeName VMware.Vim.VirtualMachineBootOptionsBootableDiskDevice -Property @{"DeviceKey" = $intHDiskDeviceKey}
+					$oBootableCDRom = New-Object -Type VMware.Vim.VirtualMachineBootOptionsBootableCdromDevice
+					$spec = New-Object VMware.Vim.VirtualMachineConfigSpec -Property @{"BootOptions" = New-Object VMware.Vim.VirtualMachineBootOptions -Property @{BootOrder = $oBootableCDRom, $oBootableHDisk}}
+					$null = $viewVM.ReconfigVM_Task($spec)
+					$null = Start-VM $MyVM
+				} else {
+					Write-BuildLog "Not creating Windows $OS VM" 
+				}
+			} else {
+				Write-BuildLog "Found existing $VMName."  
+				if (Test-Path NFS01:\$VMName\$VMName.vmtx) {
+					Write-BuildLog "Registering existing Template$os template."  
+					$vmxFile = Get-Item NFS01:\$VMName\$VMName.vmtx
+					$null = New-Template -VMHost $VMHost -TemplateFilePath $vmxFile.DatastoreFullPath
+					Write-BuildLog "Existing $VMName Template added to inventory."  
+				}
 			}
-			$null = New-CDDrive -VM $MyVM -ISOPath "[Build] /Win2012.ISO" -StartConnected
-			$null = New-FloppyDrive -VM $MyVM -FloppyImagePath "[Build] Automate/BootFloppies/Nested2012.flp" -StartConnected
-			$strBootHDiskDeviceName = "Hard disk 1"
-			$viewVM = Get-View -ViewType VirtualMachine -Property Name, Config.Hardware.Device -Filter @{"Name" = "^$VMName$"}
-			## get the VirtualDisk device, then grab its Key (DeviceKey, used later)
-			$intHDiskDeviceKey = ($viewVM.Config.Hardware.Device | ?{$_.DeviceInfo.Label -eq $strBootHDiskDeviceName}).Key
-			## bootable Disk BootOption device, for use in setting BootOrder (the corresponding VirtualDisk device is bootable, assumed)
-			$oBootableHDisk = New-Object -TypeName VMware.Vim.VirtualMachineBootOptionsBootableDiskDevice -Property @{"DeviceKey" = $intHDiskDeviceKey}
-			## bootable CDROM device (per the docs, the first CDROM with bootable media found is used)
-			$oBootableCDRom = New-Object -Type VMware.Vim.VirtualMachineBootOptionsBootableCdromDevice
-			## create the VirtualMachineConfigSpec with which to change the VM's boot order
-			$spec = New-Object VMware.Vim.VirtualMachineConfigSpec -Property @{"BootOptions" = New-Object VMware.Vim.VirtualMachineBootOptions -Property @{BootOrder = $oBootableCDRom, $oBootableHDisk}}
-			$null = $viewVM.ReconfigVM_Task($spec)
-			Write-BuildLog "Powering on VM and installing Windows."  
-			$null = Start-VM $MyVM
-		} else {
-			Write-BuildLog "Found existing WinTemplate."  
-			if (Test-Path NFS01:\$VMName\$VMName.vmtx) {
-				Write-BuildLog "Registering existing Template2012 template."  
-				$vmxFile = Get-Item NFS01:\$VMName\$VMName.vmtx
-				$null = New-Template -VMHost $VMHost -TemplateFilePath $vmxFile.DatastoreFullPath
-				Write-BuildLog "Existing WinTemplate Template added to inventory."  
-			}
+			Start-Sleep -Seconds 2
 		}
-		Start-Sleep -Seconds 2
-		$null = Remove-PSDrive NFS01
 	}
+	$null = Remove-PSDrive NFS01
 	
-	
-	if ($vmhostObj.version.split(".")[0] -eq "4") {
-		$Datastore = Get-Datastore -VMhost $vmHost -name "iSCSI2"
-		$VMName="WinTemplate4"
-	} else {
-		$Datastore = Get-Datastore -VMhost $vmHost -name "iSCSI1"
-		$VMName="WinTemplate"
-	}
-	
-	if (($CreateVM) -and ((Get-VM -name $VMName -ErrorAction "SilentlyContinue") -eq $null ) -and (test-path "\\192.168.199.7\build\Auto2K3.ISO")) {
-		if (!(Get-PSDrive -Name iSCSI1 -ErrorAction "SilentlyContinue")) {
-			$null = New-PSDrive -Name iSCSI1 -PSProvider ViMdatastore -Root '\' -Location $Datastore
-		}
-		Start-Sleep -Seconds 2
-		#Create new VM if existing VM or template doesn't exist
-		if (!(Test-Path iSCSI1:\$VMName\$VMName.vmdk)) {
-			Write-BuildLog "Creating WinTemplate VM Windows Server 2003."  
-			If ((Get-vmhost)[0].version -lt "5.5.0"){
-				$MyVM = New-VM -Name $VMName -VMhost $vmHost -datastore $Datastore -NumCPU 1 -MemoryMB 384 -DiskMB 3072 -DiskStorageFormat Thin -GuestID winNetEnterpriseGuest
-			} Else {
-				$MyVM = New-VM -Name $VMName -VMhost $vmHost -datastore $Datastore -NumCPU 1 -MemoryMB 384 -DiskMB 3072 -DiskStorageFormat Thin -GuestID winNetEnterpriseGuest -Version "v8"
-			}
-			$null = New-CDDrive -VM $MyVM -ISOPath "[Build] /Auto2K3.iso" -StartConnected
-			Write-BuildLog "Powering on VM and installing Windows."  
-			$null = Start-VM $MyVM
-		} else {
-			Write-BuildLog "Found existing WinTemplate."  
-			if (Test-Path iSCSI1:\$VMName\$VMName.vmtx) {
-				Write-BuildLog "Registering existing WinTemplate template."  
-				$vmxFile = Get-Item iSCSI1:\$VMName\$VMName.vmtx
-				$null = New-Template -VMHost $VMHost -TemplateFilePath $vmxFile.DatastoreFullPath
-				Write-BuildLog "Existing WinTemplate Template added to inventory."  
-			}
-		}
-		Start-Sleep -Seconds 2
-		$null = Remove-PSDrive iSCSI1
-	}
-	$VMName = "WinXP"
-	$Datastore = Get-Datastore "iSCSI2"
-	if (($CreateXP) -and ((Get-VM -name $VMName -ErrorAction "SilentlyContinue") -eq $null ) -and (test-path "\\192.168.199.7\build\AutoXP.iso")) {
-		if (!(Get-PSDrive -Name iSCSI2 -ErrorAction "SilentlyContinue")) {
-			$null = New-PSDrive -Name iSCSI2 -PSProvider ViMdatastore -Root '\' -Location $Datastore
-		}
-		Start-Sleep -Seconds 2
-		#Create new VM if existing VM or template doesn't exist
-		if (!(Test-Path iSCSI2:\$VMName\$VMName.vmdk)) {
-			Write-BuildLog "Creating Windows XP VM for View."  
-			If ((Get-vmhost)[0].version -lt "5.5.0"){
-				$MyVM = New-VM -Name $VMName -VMhost $vmHost -datastore $Datastore -NumCPU 1 -MemoryMB 384 -GuestID winXPProGuest
-			} Else {
-				$MyVM = New-VM -Name $VMName -VMhost $vmHost -datastore $Datastore -NumCPU 1 -MemoryMB 384 -GuestID winXPProGuest -Version "v8"
-			}
-			$null = New-CDDrive -VM $MyVM -ISOPath "[Build] /AutoXP.iso" -StartConnected
-			$null = New-FloppyDrive -VM $MyVM -FloppyImagePath "[Build] Automate/BootFloppies/vmscsi-1.2.0.4.flp" -StartConnected
-			$strBootHDiskDeviceName = "Hard disk 1"
-			$viewVM = Get-View -ViewType VirtualMachine -Property Name, Config.Hardware.Device -Filter @{"Name" = "^$VMName$"}
-			## get the VirtualDisk device, then grab its Key (DeviceKey, used later)
-			$intHDiskDeviceKey = ($viewVM.Config.Hardware.Device | ?{$_.DeviceInfo.Label -eq $strBootHDiskDeviceName}).Key
-			## bootable Disk BootOption device, for use in setting BootOrder (the corresponding VirtualDisk device is bootable, assumed)
-			$oBootableHDisk = New-Object -TypeName VMware.Vim.VirtualMachineBootOptionsBootableDiskDevice -Property @{"DeviceKey" = $intHDiskDeviceKey}
-			## bootable CDROM device (per the docs, the first CDROM with bootable media found is used)
-			$oBootableCDRom = New-Object -Type VMware.Vim.VirtualMachineBootOptionsBootableCdromDevice
-			## create the VirtualMachineConfigSpec with which to change the VM's boot order
-			$spec = New-Object VMware.Vim.VirtualMachineConfigSpec -Property @{"BootOptions" = New-Object VMware.Vim.VirtualMachineBootOptions -Property @{BootOrder = $oBootableCDRom, $oBootableHDisk}}
-			$null = $viewVM.ReconfigVM_Task($spec)
-			$Null = Start-VM $MyVM
-		} else {
-			Write-BuildLog "Found existing WinXP."  
-			if (Test-Path iSCSI1:\$VMName\$VMName.vmtx) {
-				Write-BuildLog "Registering existing WinTemplate template."  
-				$vmxFile = Get-Item iSCSI2:\$VMName\$VMName.vmtx
-				$null = New-Template -VMHost $VMHost -TemplateFilePath $vmxFile.DatastoreFullPath
-				Write-BuildLog "Existing WinTemplate Template added to inventory."  
-			}
-		}
-		Start-Sleep -Seconds 2
-		$null = Remove-PSDrive iSCSI2
-	}
 	$VMName = "TTYLinux"
 	if ((Get-VM -name $VMName -ErrorAction "SilentlyContinue") -eq $null ) {
 		Write-BuildLog "Registering existing tiny TTYLinux VM."  
@@ -526,10 +529,6 @@ If ($SRM -ne $True){
 		$null = Remove-PSDrive iSCSI3
 	}
 }
-Write-BuildLog " "
 
 $null = Disconnect-VIServer -Server * -confirm:$false
-if (Test-Path "C:\Program Files\VMware\VMware Tools\VMwareToolboxCmd.exe") {
-	Read-Host " Configuration complete, press <Enter> to continue."
-}
-exit
+#Read-Host " All OK?"

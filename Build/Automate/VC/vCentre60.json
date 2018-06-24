@@ -70,5 +70,32 @@
    "vmdir.password" : "VMware1!",
    "vmdir.replication-partner-hostname" : null,
    "vmdir.site-name" : "Default-First-Site",
-   "vmware.data.directory" : "C:\\ProgramData\\VMware\\"
+   "vmware.data.directory" : "C:\\ProgramData\\VMware\\",
+  "ceip": {
+            "__comments": [
+                "++++VMware Customer Experience Improvement Program (CEIP)++++",
+                "VMware's Customer Experience Improvement Program (CEIP) ",
+                "provides VMware with information that enables VMware to ",
+                "improve its products and services, to fix problems, ",
+                "and to advise you on how best to deploy and use our ",
+                "products. As part of the CEIP, VMware collects technical ",
+                "information about your organization's use of VMware products ",
+                "and services on a regular basis in association with your ",
+                "organization's VMware license key(s). This information does ",
+                "not personally identify any individual. ",
+                "For more details about the Program and how VMware uses ",
+                "the information it collects through CEIP, please see the ",
+                "[http://www.vmware.com/info?id=1399 product documentation]. ",
+                "By default we have 'ceip.enabled': true, which indicates ",
+                "that you are joining CEIP. If you prefer not to ",
+                "participate in VMware's CEIP for this product, you should ",
+                "disable CEIP by setting 'ceip.enable': false. You may join ",
+                "or leave VMware's CEIP for this product at any time. Please ",
+                "confirm your acknowledgement by setting ",
+                "'ceip.acknowledged': true. ",
+                "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+            ],
+            "ceip.enabled": true,
+            "ceip.acknowledged": true
+   }
 }

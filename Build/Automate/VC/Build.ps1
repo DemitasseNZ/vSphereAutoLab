@@ -5,6 +5,14 @@ if (Test-Path C:\PSFunctions.ps1) {
 	Read-Host "Press <Enter> to exit"
 	exit
 }
+write-buildlog "Starting Build.ps1"
+$a = (Get-Host).UI.RawUI
+$a.WindowTitle = "VC Build Automation"
+$b = $a.WindowSize
+$b.Height = $a.MaxWindowSize.Height - 1
+$a.WindowSize = $b
+Import-Module C:\windows\system32\WASP.dll
+Select-Window -Title "VC Build Automation" | set-windowposition -left 75 -top 3
 
 # Start VC configuration process
 if (Test-Path "B:\Automate\automate.ini") {
@@ -99,97 +107,129 @@ if (Test-Path "B:\Automate\automate.ini") {
 } else {
 	Write-BuidLog "Unable to find B:\Automate\automate.ini. Where did it go?"
 }
+if ((Get-WmiObject -Class Win32_ComputerSystem).PartOfDomain -eq $False) {
+	Write-BuildLog "Joining domain"
+	reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run /v Build /t REG_SZ /d "cmd /c c:\Build.cmd" /f 
+	$password = $AdminPWD | ConvertTo-SecureString -asPlainText -Force
+	$credential = New-Object System.Management.Automation.PSCredential("administrator",$password)
+	$null = Add-Computer -DomainName "lab.local" -Credential $credential -restart
+	read-host "Waiting for restart"
+} else {
+	reg delete HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run /v Build /f
+}
+
+Write-BuildLog "Clear System eventlog, errors to here are spurious"
+Clear-EventLog -LogName System -confirm:$False
+
 If ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62) {
 	Write-BuildLog "Disabling autorun of ServerManager at logon."
 	Start-Process schtasks -ArgumentList ' /Change /TN "\Microsoft\Windows\Server Manager\ServerManager" /DISABLE'  -Wait -Verb RunAs
 	Write-BuildLog "Disabling screen saver"
 	set-ItemProperty -path 'HKCU:\Control Panel\Desktop' -name ScreenSaveActive -value 0
 }
-if (Test-Path "C:\VMware-viewcomposer*") {
-	$Files = get-childitem "C:\"
-	for ($i=0; $i -lt $files.Count; $i++) {
-		If ($Files[$i].Name -like "VMware-viewcomposer*") {$Installer = $Files[$i].FullName}
-	}
-	switch ($viewinstall) {
-		70 {
-			Write-BuildLog "Installing VMware View 7.0 Composer"
-			Start-Process $Installer -ArgumentList '/s /v" /qn AgreeToLicense="Yes" DB_USERNAME="VMview" DB_PASSWORD="VMware1!" DB_DSN="ViewComposer" REBOOT="ReallySuppress" "' -Wait -Verb RunAs
-		}		60 {
-			Write-BuildLog "Installing VMware View 6.0 Composer"
-			Start-Process $Installer -ArgumentList '/s /v" /qn AgreeToLicense="Yes" DB_USERNAME="VMview" DB_PASSWORD="VMware1!" DB_DSN="ViewComposer" REBOOT="ReallySuppress" "' -Wait -Verb RunAs
-		}	53 {
-			Write-BuildLog "Installing VMware View 5.3 Composer"
-			Start-Process $Installer -ArgumentList '/s /v" /qn AgreeToLicense="Yes" DB_USERNAME="VMview" DB_PASSWORD="VMware1!" DB_DSN="ViewComposer" REBOOT="ReallySuppress" "' -Wait -Verb RunAs
-		}	52 {
-			Write-BuildLog "Installing VMware View 5.2 Composer"
-			Start-Process $Installer -ArgumentList '/s /v" /qn AgreeToLicense="Yes" DB_USERNAME="VMview" DB_PASSWORD="VMware1!" DB_DSN="ViewComposer" REBOOT="ReallySuppress" "' -Wait -Verb RunAs
-		}
-	}
-	reg delete HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run /v Build /f
-	Exit
-}
-
-Write-BuildLog "Clear System eventlog, erors to here are spurious"
-Clear-EventLog -LogName System -confirm:$False
 
 Write-BuildLog "Installing 7-zip."
-try {
-	Start-Process msiexec -ArgumentList '/qb /i B:\Automate\_Common\7z920-x64.msi' -Wait 
-}
-catch {
-	Write-BuildLog "7-zip installation failed."
-}
+Start-Process msiexec -ArgumentList '/qb /i B:\Automate\_Common\7z1805-x64.msi' -Wait 
+do {
+	start-sleep 10
+} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
+
 Write-BuildLog "Installing PuTTy."
 $null = New-Item -Path "C:\Program Files (x86)\PuTTY" -ItemType Directory -Force
 xcopy B:\Automate\vc\PuTTY\*.* "C:\Program Files (x86)\PuTTY" /s /c /y /q
 regedit -s B:\Automate\vc\PuTTY.reg
-If (!((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62)) {
-	try {
-		Write-BuildLog "Installing Adobe Flash Player."
-		Start-Process msiexec -ArgumentList '/i b:\Automate\_Common\install_flash_player_17_active_x.msi /qb' -Wait
-	}
-	catch {
-		Write-BuildLog "Adobe Flash Player installation failed."
-	}
-}
-Write-BuildLog ""
 
-#Install now running as local administrator, don't need to allow vi-admin access
-#$Acl = Get-Acl "C:\Buildlog.txt"
-#$Ar = New-Object  system.security.accesscontrol.filesystemaccessrule("lab\vi-admin","FullControl","Allow")
-#$Acl.SetAccessRule($Ar)
-#Set-Acl "C:\Buildlog.txt" $Acl
+browserAndFlash
 
 Write-BuildLog "Change default local administrator password"
 net user administrator $AdminPWD
 B:\automate\_Common\Autologon administrator vc $AdminPWD
 
-Write-BuildLog ""
-if (Test-Path "b:\VMware-PowerCLI*.exe") {
-	#Start-Process b:\VMware-PowerCLI.exe -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-	$null = New-Item -Path "C:\Users\vi-admin\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1" -ItemType File -Force
-	$null = Add-Content -Path "C:\Users\vi-admin\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1" -Value @"
-if ((Get-PSSnapin -Name VMware.VimAutomation.Core -ErrorAction SilentlyContinue) -eq `$null) {
-	try {
-		Write-Host "Loading PowerCLI plugin, this may take a little while." -foregroundcolor "cyan"
-		Add-PSSnapin VMware.VimAutomation.Core
-		`$PCLIVer = Get-PowerCLIVersion
-		if (((`$PCLIVer.Major * 10 ) + `$PCLIVer.Minor) -ge 51) {
-			`$null = Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -confirm:`$false -Scope "Session"
-		}
-	}
-	catch {
-		Write-Host "Unable to load the PowerCLI plugin. Please verify installation or install VMware PowerCLI and run this script again."
-		Read-Host "Press <Enter> to exit"
-		exit
-	}
-}
-"@	
-} else {
-	Write-BuildLog "VMware PowerCLI installer not found. This will need to be installing before running any AutoLab PowerShell post-install scripts."
-}
-
 switch ($vcinstall) {
+	67 {
+		Write-BuildLog "Starting vCenter 6.7 automation."
+		If ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -eq 63) {
+			Write-BuildLog "Installing universal C Runtime for windows 2016"
+			B:
+			cd B:\VIM_67\
+			b:\automate\_common\wget.exe -q --no-check-certificate https://download.microsoft.com/download/D/1/3/D13E3150-3BB2-4B22-9D8A-47EE2D609FFF/Windows8.1-KB2999226-x64.msu
+			Start-Process wusa.exe  -ArgumentList "B:\VIM_67\Windows8.1-KB2999226-x64.msu /quiet"  -Wait -Verb RunAs
+		} ElseIf ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -eq 62) {
+			Write-BuildLog "Installing universal C Runtime for windows 2012"
+			B:
+			cd B:\VIM_67\
+			b:\automate\_common\wget.exe -q --no-check-certificate https://download.microsoft.com/download/9/3/E/93E0745A-EAE9-4B5A-B50C-012F2D3B6659/Windows8-RT-KB2999226-x64.msu
+			Start-Process wusa.exe  -ArgumentList "B:\VIM_67\Windows8-RT-KB2999226-x64.msu /quiet"  -Wait -Verb RunAs
+		} ElseIf ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -eq 61) {
+			Write-BuildLog "Installing universal C Runtime for windows 2008"
+			B:
+			cd B:\VIM_67\
+			b:\automate\_common\wget.exe -q --no-check-certificate https://download.microsoft.com/download/F/1/3/F13BEC9A-8FC6-4489-9D6A-F84BDC9496FE/Windows6.1-KB2999226-x64.msu
+			Start-Process wusa.exe  -ArgumentList "B:\VIM_67\Windows6.1-KB2999226-x64.msu /quiet"  -Wait -Verb RunAs
+		}
+		if (Test-Path "b:\VIM_67\redist\SQLEXPR\SQLEXPR_x64_ENU.exe") {
+			Write-BuildLog "SQL Server 2012 Express SP1 for vCenter 6.7 found; installing."
+			Start-Process b:\VIM_67\redist\SQLEXPR\SQLEXPR_x64_ENU.exe -ArgumentList '/q /x:c:\temp /quiet' -Wait -Verb RunAs
+			if (Test-Path "C:\temp\pcusource\1033_enu_lp\x64\setup\x64\sqlncli.msi") {
+				copy C:\temp\pcusource\1033_enu_lp\x64\setup\x64\sqlncli.msi c:\temp
+			} elseif (Test-Path "C:\temp\1033_enu_lp\x64\setup\x64\sqlncli.msi") {
+				copy C:\temp\1033_enu_lp\x64\setup\x64\sqlncli.msi c:\temp
+			}
+			if (Test-Path "C:\temp\sqlncli.msi") {
+				Write-BuildLog "Installing SQL native client."
+				Start-Process msiexec -ArgumentList '/i C:\temp\sqlncli.msi ADDLOCAL=ALL IACCEPTSQLNCLILICENSETERMS=YES /qb' -Wait -Verb RunAs
+				Start-Process regedit -ArgumentList "-s B:\Automate\vc\vCenter6DB.reg" -Wait -Verb RunAs
+				do {
+					start-sleep 10
+				} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
+			}
+		} else {
+			Write-BuildLog "SQL Server 2012 Express SP1 for vCenter 6.7 not found. Exiting."
+			Read-Host "Press <Enter> to exit"
+			exit
+		}
+		do {
+			start-sleep 10
+		} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
+		Write-BuildLog "Installing vCentre server 6.7. with embedded PSC"
+		Start-Process B:\VIM_67\vCenter-Server\VMware-vCenter-Server.exe -ArgumentList " /qr CUSTOM_SETTINGS=B:\Automate\VC\vCentre60.json" -Wait -Verb RunAs
+	}
+	65 {
+		Write-BuildLog "Starting vCenter 6.5 automation."
+		if (Test-Path "b:\VIM_65\redist\SQLEXPR\SQLEXPR_x64_ENU.exe") {
+			Write-BuildLog "SQL Server 2012 Express SP1 for vCenter 6.5 found; installing."
+			Start-Process b:\VIM_65\redist\SQLEXPR\SQLEXPR_x64_ENU.exe -ArgumentList '/q /x:c:\temp /quiet' -Wait -Verb RunAs
+			if (Test-Path "C:\temp\pcusource\1033_enu_lp\x64\setup\x64\sqlncli.msi") {
+				copy C:\temp\pcusource\1033_enu_lp\x64\setup\x64\sqlncli.msi c:\temp
+			} elseif (Test-Path "C:\temp\1033_enu_lp\x64\setup\x64\sqlncli.msi") {
+				copy C:\temp\1033_enu_lp\x64\setup\x64\sqlncli.msi c:\temp
+			}
+			if (Test-Path "C:\temp\sqlncli.msi") {
+				Write-BuildLog "Installing SQL native client."
+				Start-Process msiexec -ArgumentList '/i C:\temp\sqlncli.msi ADDLOCAL=ALL IACCEPTSQLNCLILICENSETERMS=YES /qb' -Wait -Verb RunAs
+				Start-Process regedit -ArgumentList "-s B:\Automate\vc\vCenter6DB.reg" -Wait -Verb RunAs
+				do {
+					start-sleep 10
+				} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
+			}
+		} else {
+			Write-BuildLog "SQL Server 2012 Express SP1 for vCenter 6.5 not found. Exiting."
+			Read-Host "Press <Enter> to exit"
+			exit
+		}
+		Write-BuildLog "Installing vCentre server 6.5. with embedded PSC"
+		Start-Process B:\VIM_65\vCenter-Server\VMware-vCenter-Server.exe -ArgumentList " /qr CUSTOM_SETTINGS=B:\Automate\VC\vCentre60.json" -Wait -Verb RunAs
+		Write-BuildLog "Installing vCentre Client Integration Plugin"
+		If (!(Test-Path("c:\temp\VMware-ClientIntegrationPlugin-6.5.0.exe"))) {
+			B:
+			cd B:\VIM_65
+			B:\Automate\_Common\wget.exe -q http://vsphereclient.vmware.com/vsphereclient/VMware-ClientIntegrationPlugin-6.5.0.exe
+		}										
+		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oc:\temp\ B:\VIM_65\VMware-ClientIntegrationPlugin-6.5.0.exe >> C:\ExtractLog.txt
+		Start-Process C:\temp\VMware-ClientIntegrationPlugin.win32.exe -ArgumentList '/s /v /qn ' -Wait -Verb RunAs
+		Start-Process C:\temp\VMware-ClientIntegrationService.win32.exe -ArgumentList '/s /v /qn ' -Wait -Verb RunAs
+
+	}
 	60 {
 		Write-BuildLog "Starting vCenter 6.0 automation."
 		if (Test-Path "b:\VIM_60\redist\SQLEXPR\SQLEXPR_x64_ENU.exe") {
@@ -204,7 +244,9 @@ switch ($vcinstall) {
 				Write-BuildLog "Installing SQL native client."
 				Start-Process msiexec -ArgumentList '/i C:\temp\sqlncli.msi ADDLOCAL=ALL IACCEPTSQLNCLILICENSETERMS=YES /qb' -Wait -Verb RunAs
 				Start-Process regedit -ArgumentList "-s B:\Automate\vc\vCenter6DB.reg" -Wait -Verb RunAs
-				start-sleep -s 10
+				do {
+					start-sleep 10
+				} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
 			}
 		} else {
 			Write-BuildLog "SQL Server 2012 Express SP1 for vCenter 6.0 not found. Exiting."
@@ -213,6 +255,9 @@ switch ($vcinstall) {
 		}
 		Write-BuildLog "Installing vCentre server 6.0. with embedded PSC"
 		Start-Process B:\VIM_60\vCenter-Server\VMware-vCenter-Server.exe -ArgumentList " /qr CUSTOM_SETTINGS=B:\Automate\VC\vCentre60.json" -Wait -Verb RunAs
+		do {
+			start-sleep 10
+		} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
 		Write-BuildLog "Installing vCentre Client Integration Plugin"
 		If (!(Test-Path("c:\temp\VMware-ClientIntegrationPlugin-6.0.0.exe"))) {
 			B:
@@ -226,28 +271,19 @@ switch ($vcinstall) {
 		$null = copy B:\Automate\vc\SSHAutoConnect\*.* "C:\Program Files (x86)\VMware\Infrastructure\Virtual Infrastructure Client\Plugins\SSHAutoConnect"
 		Write-BuildLog "Installing vSphere Client 6.0 VUM Plugin."
 		Start-Process B:\VIM_60\updateManager\VMware-UMClient.exe -ArgumentList '/qb /s /w /L1033 /v" /qr"' -Wait -Verb RunAs
-		Write-BuildLog "Installing vSphere Web Client Integration plugin."
-		if ((Test-Path "b:\VMware-PowerCLI-6.0.*.exe") -and ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62)) {
-			Write-BuildLog "VMware PowerCLI 6.0 installer found; installing."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-6.0.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} elseif (Test-Path "b:\VMware-PowerCLI-5.8.*.exe") {
-			Write-BuildLog "VMware PowerCLI 5.8 installer found; installing."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.8.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} elseif (Test-Path "b:\VMware-PowerCLI-5.5.*.exe") {
-			Write-BuildLog "VMware PowerCLI 5.5 installer found; installing."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.5.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} elseif (Test-Path "b:\VMware-PowerCLI-5.0.*.exe"){
-			Write-BuildLog "PowerCLI installer is out of date, installing anyway."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.0.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} else {
-			If ((Read-Host "Would you like to go to the PowerCLI download site (y/n)?") -like "y") {
-				$IE=new-object -com internetexplorer.application
-				if ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62) {$IE.navigate2("https://my.vmware.com/group/vmware/get-download?downloadGroup=PCLI600R1")}
-				if ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -le 62) {$IE.navigate2("https://my.vmware.com/group/vmware/get-download?downloadGroup=PCLI58R1")}
-				$IE.visible=$true
+		If (($DeployVUM) -and ($vcinstall -eq "60")) {
+			do {
+				start-sleep 10
+			} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
+			Write-BuildLog "Installing vCenter Update Manager 6.0."
+			if ((([System.Environment]::OSVersion.Version.Major *10) + [System.Environment]::OSVersion.Version.Minor) -ge 62) {
+				Start-Process B:\VIM_60\redist\dotnet\dotnetfx35.exe -ArgumentList " /qb /norestart" -Wait -Verb RunAs
 			} Else {
-				Write-Host "OK, but the build will not work correctly without PowerCLI"
+				import-module ServerManager
+				$null = Add-WindowsFeature AS-NET-Framework
 			}
+			$Arguments = '""/L1033 /v" /qr VMUM_SERVER_SELECT=vc.lab.local VC_SERVER_IP=vc.lab.local VC_SERVER_ADMIN_USER=\"administrator@vsphere.local\" VC_SERVER_ADMIN_PASSWORD=\"VMware1!\" VCI_DB_SERVER_TYPE=Custom VCI_FORMAT_DB=1 DB_DSN=VUM DB_USERNAME=vpx DB_PASSWORD=VMware1!"'
+			Start-Process B:\VIM_60\updateManager\VMware-UpdateManager.exe -ArgumentList $Arguments -Wait -Verb RunAs
 		}
 	}
 	55 {
@@ -295,23 +331,6 @@ switch ($vcinstall) {
 		Write-BuildLog "Installing vSphere Web Client Integration plugin."
 		copy "C:\Program Files\VMware\Infrastructure\vSphereWebClient\server\work\deployer\s\global\72\0\container-app-war-5.5.0.war\vmrc\VMware-ClientIntegrationPlugin-5.5.0.exe" c:\
 		Start-Process C:\VMware-ClientIntegrationPlugin-5.5.0.exe -ArgumentList '/v/qn' -Wait -Verb RunAs
-		if (Test-Path "b:\VMware-PowerCLI-5.8.*.exe") {
-			Write-BuildLog "VMware PowerCLI installer found; installing."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.8.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} elseif (Test-Path "b:\VMware-PowerCLI-5.5.*.exe") {
-			Write-BuildLog "VMware PowerCLI installer found; installing."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.5.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} elseif (Test-Path "b:\VMware-PowerCLI-5.0.*.exe"){
-			Write-BuildLog "PowerCLI installer is out of date, installing anyway."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.0.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} else {			If ((Read-Host "Would you like to go to the PowerCLI download site (y/n)?") -like "y") {
-				$IE=new-object -com internetexplorer.application
-				$IE.navigate2("https://my.vmware.com/group/vmware/get-download?downloadGroup=PCLI58R1")
-				$IE.visible=$true
-			} Else {
-				Write-Host "OK, but the build will not work correctly without PowerCLI"
-			}
-		}
 	}
 	51 {
 		Write-BuildLog "Starting vCenter 5.1 automation."
@@ -358,13 +377,6 @@ switch ($vcinstall) {
 		Write-BuildLog "Installing vSphere Web Client Integration plugin."
 		copy "C:\Program Files\VMware\Infrastructure\vSphereWebClient\server\work\org.eclipse.virgo.kernel.deployer_3.0.3.RELEASE\staging\global\bundle\com.vmware.vsphere.client.containerapp\5.1.0\container-app-war-5.1.0.war\vmrc\VMware-ClientIntegrationPlugin-5.1.0.exe" c:\
 		Start-Process C:\VMware-ClientIntegrationPlugin-5.1.0.exe -ArgumentList '/v/qn' -Wait -Verb RunAs
-		if (Test-Path "b:\VMware-PowerCLI-5.1.*.exe") {
-			Write-BuildLog "VMware PowerCLI installer found; installing."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.1.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} elseif (Test-Path "b:\VMware-PowerCLI-5.0.*.exe"){
-			Write-BuildLog "PowerCLI installer is out of date, installing anyway."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.0.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} else {Write-BuildLog "PowerCLI installer not found."}
 	}
 	5 {
 		Write-BuildLog "Starting vCenter 5 automation."
@@ -388,11 +400,7 @@ switch ($vcinstall) {
 		Write-BuildLog "Installing vCenter and vSphere client."
 		copy b:\automate\vc\vc50.cmd c:\
 		start-process c:\vc50.cmd -Wait -verb RunAs
-		if (Test-Path "b:\VMware-PowerCLI-5.0.*.exe"){
-			Write-BuildLog "VMware PowerCLI installer found; installing."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.0.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} else {Write-BuildLog "PowerCLI installer not found."}
-}
+	}
 	4 {
 		Write-BuildLog "Starting vCenter 4.1 automation."
 		if (Test-Path "b:\VIM_41\redist\SQLEXPR\x64\SQLEXPR.EXE") {
@@ -408,11 +416,7 @@ switch ($vcinstall) {
 		}
 		copy b:\automate\vc\vc41.cmd c:\
 		start-process c:\vc41.cmd -Wait -verb RunAs
-			if (Test-Path "b:\VMware-PowerCLI-5.0.*.exe"){
-			Write-BuildLog "VMware PowerCLI installer found; installing."
-			Start-Process (Get-ChildItem b:\VMware-PowerCLI-5.0.*.exe).FullName -ArgumentList '/q /s /w /L1033 /V" /qb"' -Wait -Verb RunAs
-		} else {Write-BuildLog "PowerCLI installer not found."}
-}
+	}
 	Base {
 		if (Test-Path "b:\VIM_55\redist\SQLEXPR\SQLEXPR_x64_ENU.exe") {
 			Write-BuildLog "SQL Server 2008 R2 Express SP1 for vCenter 5.5 found; installing."
@@ -460,6 +464,7 @@ switch ($vcinstall) {
 	}
 	None {}
 }
+
 If ($viewinstall -ne "None") {
 	$Files = get-childitem "b:\view$viewinstall"
 	for ($i=0; $i -lt $files.Count; $i++) {
@@ -467,33 +472,30 @@ If ($viewinstall -ne "None") {
 	}
 }
 switch ($viewinstall) {
-	70 {
+	75 {
+		if (Test-Path "B:\View75\VMware-viewcomposer-*.exe") {
+			Write-BuildLog "Setup install VMware View 7.5 Composer, reboot required before install"
+			copy-item $Installer C:\
+		}
+	} 70 {
 		if (Test-Path "B:\View70\VMware-viewcomposer-*.exe") {
 			Write-BuildLog "Setup install VMware View 7.0 Composer, reboot required before install"
 			copy-item $Installer C:\
-			Write-BuildLog "Setup script recall for Phase 2 completion"
-			reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce /v Build /t REG_SZ /d "cmd /c c:\Build.cmd" /f  >> c:\buildlog.txt
 		}
 	}	60 {
 		if (Test-Path "B:\View60\VMware-viewcomposer-*.exe") {
 			Write-BuildLog "Setup install VMware View 6.0 Composer, reboot required before install"
 			copy-item $Installer C:\
-			Write-BuildLog "Setup script recall for Phase 2 completion"
-			reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce /v Build /t REG_SZ /d "cmd /c c:\Build.cmd" /f  >> c:\buildlog.txt
 		}
 	}	53 {
 		if (Test-Path "B:\View53\VMware-viewcomposer-5.3*.exe") {
 			Write-BuildLog "Setup install VMware View 5.3 Composer, reboot required before install"
 			copy-item $Installer C:\
-			Write-BuildLog "Setup script recall for Phase 2 completion"
-			reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce /v Build /t REG_SZ /d "cmd /c c:\Build.cmd" /f  >> c:\buildlog.txt
 		}
 	}	52 {
 		if (Test-Path "B:\View52\VMware-viewcomposer-5.2*.exe") {
 			Write-BuildLog "Setup install VMware View 5.2 Composer, reboot required before install"
 			copy-item $Installer C:\
-			Write-BuildLog "Setup script recall for Phase 2 completion"
-			reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Runonce /v Build /t REG_SZ /d "cmd /c c:\Build.cmd" /f  >> c:\buildlog.txt
 		}
 	}
 	51 {
@@ -518,54 +520,16 @@ if (Test-Path "b:\VMware-vSphere-CLI.exe") {
 	Write-BuildLog "VMware vSphere CLI installer not found."
 }
 
-Write-BuildLog "Adding Domain Admins to vCenter administrators role and setting PowerCLI certificate warning."
-if (!(($vcinstall -eq "None") -or ($vcinstall -eq "Base"))) {
-	Add-PSSnapin VMware.VimAutomation.Core
-	$PCLIVer = Get-PowerCLIVersion
-	if ((($PCLIVer.Major * 10 ) + $PCLIVer.Minor) -ge 51) {
-		$null = Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -confirm:$false -Scope "AllUsers"
-	}
-	If ($vcinstall -eq "60") {
-		$null = connect-viserver vc.lab.local -user administrator@vsphere.local -password VMware1!
-		$null = New-VIPermission -Role Admin -Principal 'Administrator' -Entity Datacenters
-		$null = Disconnect-VIServer -Server * -confirm:$false
-		If ($DeployVUM) {
-			Write-BuildLog "Installing vCenter Update Manager 6.0."
-			if ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62) {
-				Start-Process B:\VIM_60\redist\dotnet\dotnetfx35.exe -ArgumentList " /qb /norestart" -Wait -Verb RunAs
-			} Else {
-				import-module ServerManager
-				Add-WindowsFeature AS-NET-Framework
-			}
-			$Arguments = '""/L1033 /v" /qr VMUM_SERVER_SELECT=vc.lab.local VC_SERVER_IP=vc.lab.local VC_SERVER_ADMIN_USER=\"VC\administrator\" VC_SERVER_ADMIN_PASSWORD=' + $AdminPWD +' VCI_DB_SERVER_TYPE=Custom VCI_FORMAT_DB=1 DB_DSN=VUM DB_USERNAME=vpx DB_PASSWORD=VMware1!"'
-			Start-Process B:\VIM_60\updateManager\VMware-UpdateManager.exe -ArgumentList $Arguments -Wait -Verb RunAs
-		}
-	} ElseIf ($vcinstall -eq "55") {
-		$null = connect-viserver vc.lab.local -user vc\administrator -password $AdminPWD
-		$null = New-VIPermission -Role Admin -Principal 'lab\Domain Admins' -Entity Datacenters
-		$null = Disconnect-VIServer -Server * -confirm:$false
-	} ElseIf ($vcinstall -eq "51") {
-		$null = connect-viserver vc.lab.local -user vc\administrator -password $AdminPWD
-		$null = New-VIPermission -Role Admin -Principal 'Administrators' -Entity Datacenters
-		$null = Disconnect-VIServer -Server * -confirm:$false
-	} Else {
-		$null = connect-viserver vc.lab.local -user vc\administrator -password $AdminPWD
-		$null = New-VIPermission -Role Admin -Principal 'lab\Domain Admins' -Entity Datacenters
-		$null = New-VIPermission -Role Admin -Principal 'Administrator' -Entity Datacenters
-		$null = Disconnect-VIServer -Server * -confirm:$false
-	}
-}
-
 if ($buildvm -and (Test-Path B:\Win2k3.iso)) {
 	Write-BuildLog "Creating fully automated Windows 2003 install ISO."
 	$null = New-Item -Path c:\temp\Win2K3 -ItemType Directory -Force
 	cd c:\temp\Win2K3
 	. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa b:\win2k3.iso >> c:\temp\Extractlog.txt
-	cmd /c copy c:\temp\Win2K3\[BOOT]\Bootable_NoEmulation.img c:\temp\Win2K3\win2k3.img
+	cmd /c copy C:\temp\Win2K3\[BOOT]\Boot-NoEmul.img C:\temp\Win2K3\Win2K3.img
 	if (!(Test-Path b:\Auto2K3.iso)) {
 		Copy-Item -Path C:\temp\Auto2K3.sif -Destination c:\temp\Win2K3\i386\winnt.sif -Force
 		Copy-Item B:\Automate\_Common\Auto2K3.cmd c:\temp\Win2k3
-		 b:\automate\vc\mkisofs -b win2k3.img -c boot.catalog -hide boot.catalog -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -iso-level 2 -J -l -D -N -joliet-long -quiet -relaxed-filenames -V "WIN2K3" -o b:\Auto2K3.iso . 
+		b:\automate\vc\mkisofs -b Win2K3.img -c boot.catalog -hide boot.catalog -no-emul-boot -boot-load-seg 1984 -boot-load-size 4 -iso-level 2 -J -l -D -N -joliet-long -quiet -relaxed-filenames -V "WIN2K3" -o b:\Auto2K3.iso . 
 	}
 	if (!(Test-Path b:\Windows2K3.iso)) {
 		Write-BuildLog "Creating Lab Windows 2003 install ISO"
@@ -599,7 +563,7 @@ if ($buildviewvm -and (Test-Path B:\WinXP.iso)) {
 	}
 	if (!(Test-Path b:\AutoXP.iso)){
 		Write-BuildLog "Creating fully automated Windows XP install ISO for VMware View"
-		cmd /c copy c:\temp\WinXP\[BOOT]\Bootable_NoEmulation.img c:\temp\WinXP\winXP.img
+		cmd /c copy c:\temp\WinXP\[BOOT]\Boot-NoEmul.img c:\temp\WinXP\winXP.img
 		rd c:\temp\WinXP\[BOOT]
 		Move-Item -Path C:\temp\AutoXP.sif -Destination c:\temp\WinXP\i386\winnt.sif
 		$null = New-Item -Path  C:\temp\WinXP\$OEM$ -ItemType Directory -Force
@@ -612,6 +576,11 @@ if ($buildviewvm -and (Test-Path B:\WinXP.iso)) {
 	cd c:\
 }
 
+if (!(($vcinstall -eq "None") -or ($vcinstall -eq "Base"))) {
+	$PCLIVernum = deployPowerCLI
+	Copy-Item -Path "b:\automate\vc\Phase2.ps1" "c:\Phase2.ps1" -force
+	reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce /v Build /t REG_SZ /d "c:\windows\syswow64\WindowsPowerShell\v1.0\powershell.exe c:\Phase2.ps1" /f
+}
 Write-BuildLog "Cleanup and creating Desktop shortcuts."
 regedit -s b:\Automate\vc\vSphereClient.reg
 Remove-Item "C:\Users\Public\Desktop\*.lnk"
@@ -623,23 +592,17 @@ Remove-Item c:\temp\* -Force -Recurse
 copy b:\Automate\vc\Shortcuts.vbs c:\Shortcuts.vbs
 wscript c:\Shortcuts.vbs
 copy b:\Automate\*.ps1 c:\
-
-Write-BuildLog "Disable Internet Explorer Enhanced Security to allow access to Web Client"
-$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
-$UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
-Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
-Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
-	
-If (($AutoAddHosts -eq "True") -and (Test-Path "c:\Addhosts.ps1")){
-	Write-BuildLog " "
-	Write-BuildLog "Automatically running AddHosts script."
-	Write-BuildLog " "
-	Start-Process c:\windows\syswow64\WindowsPowerShell\v1.0\powershell.exe -ArgumentList " C:\AddHosts.ps1" -wait
+If ((([System.Environment]::OSVersion.Version.Major *10) + [System.Environment]::OSVersion.Version.Minor) -ge 62) {
+	Write-BuildLog "Disable Internet Explorer Enhanced Security to allow access to Web Client"
+	$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+	$UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
+	Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+	Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
 }
 Write-BuildLog "Installing VMware tools, build complete after reboot."
 if (Test-Path B:\VMTools\setup64.exe) {
 	#Read-Host "End of install checkpoint, before VMTools"
-	if (([bool]($emailto -as [Net.Mail.MailAddress])) -and ($SmtpServer -ne "none")){
+	if (([bool]($emailto -as [Net.Mail.MailAddress])) -and ($SmtpServer -ne "none") -and (($vcinstall -eq "None") -or ($vcinstall -eq "Base"))){
 		$mailmessage = New-Object system.net.mail.mailmessage
 		$SMTPClient = New-Object Net.Mail.SmtpClient($SmtpServer, 25) 
 		$mailmessage.from = "AutoLab<autolab@labguides.com>"
@@ -652,6 +615,8 @@ if (Test-Path B:\VMTools\setup64.exe) {
 		$attach = new-object Net.Mail.Attachment("C:\buildlog.txt") 
 		$mailmessage.Attachments.Add($attach) 
 		$SMTPClient.Send($mailmessage)
+		$mailmessage.dispose()
+		$SMTPClient.dispose()
 	}
 	Start-Process B:\VMTools\setup64.exe -ArgumentList '/s /v "/qn"' -verb RunAs -Wait
 }

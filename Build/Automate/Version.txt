@@ -1,7 +1,7 @@
 **
-* Autolab V2.6 
+* Autolab V3.0 
 **
-* Released April 2015
+* Released June 2018
 **
 * New versions and updates at www.labguides.com
 **

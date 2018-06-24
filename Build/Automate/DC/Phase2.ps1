@@ -6,6 +6,31 @@ if (Test-Path C:\PSFunctions.ps1) {
 	exit
 }
 
+if((get-process "dcpromo" -ea SilentlyContinue) -ne $Null){
+	write-buildlog "DCPromo still in progress, closing"
+ 	exit 
+}
+Try {
+	Get-ADDomainController -Discover -ea SilentlyContinue
+} catch { 
+	write-buildlog "Not yet a domain controller, DCPromo"
+	#Install-Windowsfeature AD-Domain-Services,DNS -IncludeManagementTools
+	$null = Add-WindowsFeature -name ad-domain-services -IncludeManagementTools
+	$safemodeadminpwd = ConvertTo-SecureString -String "VMware1!" -asplaintext -force 
+	Write-buildlog "Install-ADDSForest"
+	$null = Install-ADDSForest -DomainName "lab.local" -ForestMode Win2008R2 -DomainMode Win2008R2  -SafeModeAdministratorPassword $safemodeadminpwd -Force 
+	exit 
+} 
+write-buildlog "Starting Phase2.ps1"
+
+$a = (Get-Host).UI.RawUI
+$a.WindowTitle = "DC Build Automation"
+$b = $a.WindowSize
+$b.Height = $a.MaxWindowSize.Height - 1
+$a.WindowSize = $b
+Import-Module C:\windows\system32\WASP.dll
+Select-Window -Title "DC Build Automation" | set-windowposition -left 75 -top 3
+
 # Start DC configuration process
 if (Test-Path B:\Automate\automate.ini) {
 	$KMSIP = "0.0.0.0"
@@ -45,13 +70,12 @@ if (Test-Path B:\Automate\automate.ini) {
 
 Write-BuildLog "Installing 7-zip."
 try {
-	msiexec /qb /i B:\Automate\_Common\7z920-x64.msi
+	msiexec /qb /i B:\Automate\_Common\7z1805-x64.msi
 	Write-BuildLog "Installation of 7-zip completed."
 }
 catch {
 	Write-BuildLog "7-zip installation failed."
 }
-Write-BuildLog ""
 if (Test-Path "b:\VMware-PowerCLI.exe") {
 	$PowCLIver = (Get-ChildItem B:\VMware-PowerCLI.exe).VersionInfo.ProductVersion.trim()
 	if ($PowCLIver -eq "5.0.0.3501") {$PowCLIver = "5.0.0-3501"}
@@ -75,7 +99,6 @@ if (Test-Path "C:\Program Files\Tftpd64_SE\Tftpd64_SVC.exe") {
 	Write-BuildLog "Copying B:\Automate\DC\TFTP-Root\ contents to C:\TFTP-Root."
 	xcopy B:\Automate\DC\TFTP-Root\*.* C:\TFTP-Root\ /s /c /y /q
 	Write-BuildLog "Installation of TFTP completed."
-	Write-BuildLog ""
 }
 
 Write-BuildLog "Set root password for ESXi builds"
@@ -99,6 +122,54 @@ $TempContent = Get-Content B:\Automate\Hosts\esx12-5.cfg |%{$_ -replace "VMware1
 $TempContent | Set-Content B:\Automate\Hosts\esx12-5.cfg
  
 Write-BuildLog "Checking for vSphere files..."
+if (Test-Path "B:\ESXi67\*") {
+	if ((Test-Path "B:\ESXi67\*.iso") -and !(Test-Path "B:\ESXi67\BOOT.CFG") ){
+		Write-BuildLog "Extracting ESXi 6.7 installer from ISO."
+		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\ESXi67\ B:\ESXi67\*.iso >> C:\ExtractLog.txt
+	}  
+	Write-BuildLog "ESXi 6.7 found; creating C:\TFTP-Root\ESXi67 and copying ESXi 67 boot files."
+	$null = $null = New-Item -Path C:\TFTP-Root\ESXi67 -ItemType Directory -Force -Confirm:$false
+	xcopy B:\ESXi67\*.* C:\TFTP-Root\ESXi67\ /s /c /y /q
+	Get-Content C:\TFTP-Root\ESXi67\BOOT.CFG | %{$_ -replace "/","/ESXi67/"} | Set-Content C:\TFTP-Root\ESXi67\Besx1-67.cfg
+	Add-Content C:\TFTP-Root\ESXi67\Besx1-67.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx1-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi67\BOOT.CFG | %{$_ -replace "/","/ESXi67/"} | Set-Content C:\TFTP-Root\ESXi67\Besx2-67.cfg
+	Add-Content C:\TFTP-Root\ESXi67\Besx2-67.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx2-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi67\BOOT.CFG | %{$_ -replace "/","/ESXi67/"} | Set-Content C:\TFTP-Root\ESXi67\Besx3-67.cfg
+	Add-Content C:\TFTP-Root\ESXi67\Besx3-67.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi67\BOOT.CFG | %{$_ -replace "/","/ESXi67/"} | Set-Content C:\TFTP-Root\ESXi67\Besx4-67.cfg
+	Add-Content C:\TFTP-Root\ESXi67\Besx4-67.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi67\BOOT.CFG | %{$_ -replace "/","/ESXi67/"} | Set-Content C:\TFTP-Root\ESXi67\BOOTM.CFG
+	powershell C:\PXEMenuConfig.ps1 ESXi67
+	Write-BuildLog "ESXi 6.7 added to TFTP and PXE menu."
+	$esxi67 = $true
+} else {
+	$esxi67 = $false
+}
+
+if (Test-Path "B:\ESXi65\*") {
+	if ((Test-Path "B:\ESXi65\*.iso") -and !(Test-Path "B:\ESXi65\BOOT.CFG") ){
+		Write-BuildLog "Extracting ESXi 6.5 installer from ISO."
+		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\ESXi65\ B:\ESXi65\*.iso >> C:\ExtractLog.txt
+	}  
+	Write-BuildLog "ESXi 6.5 found; creating C:\TFTP-Root\ESXi65 and copying ESXi 65 boot files."
+	$null = $null = New-Item -Path C:\TFTP-Root\ESXi65 -ItemType Directory -Force -Confirm:$false
+	xcopy B:\ESXi65\*.* C:\TFTP-Root\ESXi65\ /s /c /y /q
+	Get-Content C:\TFTP-Root\ESXi65\BOOT.CFG | %{$_ -replace "/","/ESXi65/"} | Set-Content C:\TFTP-Root\ESXi65\Besx1-65.cfg
+	Add-Content C:\TFTP-Root\ESXi65\Besx1-65.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx1-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi65\BOOT.CFG | %{$_ -replace "/","/ESXi65/"} | Set-Content C:\TFTP-Root\ESXi65\Besx2-65.cfg
+	Add-Content C:\TFTP-Root\ESXi65\Besx2-65.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx2-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi65\BOOT.CFG | %{$_ -replace "/","/ESXi65/"} | Set-Content C:\TFTP-Root\ESXi65\Besx3-65.cfg
+	Add-Content C:\TFTP-Root\ESXi65\Besx3-65.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi65\BOOT.CFG | %{$_ -replace "/","/ESXi65/"} | Set-Content C:\TFTP-Root\ESXi65\Besx4-65.cfg
+	Add-Content C:\TFTP-Root\ESXi65\Besx4-65.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
+	Get-Content C:\TFTP-Root\ESXi65\BOOT.CFG | %{$_ -replace "/","/ESXi65/"} | Set-Content C:\TFTP-Root\ESXi65\BOOTM.CFG
+	powershell C:\PXEMenuConfig.ps1 ESXi65
+	Write-BuildLog "ESXi 6.5 added to TFTP and PXE menu."
+	$esxi65 = $true
+} else {
+	$esxi65 = $false
+}
+
 if (Test-Path "B:\ESXi60\*") {
 	if ((Test-Path "B:\ESXi60\*.iso") -and !(Test-Path "B:\ESXi60\BOOT.CFG") ){
 		Write-BuildLog "Extracting ESXi 6.0 installer from ISO."
@@ -115,10 +186,9 @@ if (Test-Path "B:\ESXi60\*") {
 	Add-Content C:\TFTP-Root\ESXi60\Besx3-60.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi60\BOOT.CFG | %{$_ -replace "/","/ESXi60/"} | Set-Content C:\TFTP-Root\ESXi60\Besx4-60.cfg
 	Add-Content C:\TFTP-Root\ESXi60\\Besx4-60.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
-	Get-Content C:\TFTP-Root\ESXi60\BOOT.CFG | %{$_ -replace "/","/ESXi60/"} | Set-Content C:\TFTP-Root\ESXi60\BOOT.CFG
+	Get-Content C:\TFTP-Root\ESXi60\BOOT.CFG | %{$_ -replace "/","/ESXi60/"} | Set-Content C:\TFTP-Root\ESXi60\BOOTM.CFG
 	powershell C:\PXEMenuConfig.ps1 ESXi60
 	Write-BuildLog "ESXi 6.0 added to TFTP and PXE menu."
-	Write-BuildLog ""
 	$esxi60 = $true
 } else {
 	$esxi60 = $false
@@ -140,10 +210,9 @@ if (Test-Path "B:\ESXi55\*") {
 	Add-Content C:\TFTP-Root\ESXi55\Besx3-55.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi55\BOOT.CFG | %{$_ -replace "/","/ESXi55/"} | Set-Content C:\TFTP-Root\ESXi55\Besx4-55.cfg
 	Add-Content C:\TFTP-Root\ESXi55\\Besx4-55.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
-	Get-Content C:\TFTP-Root\ESXi55\BOOT.CFG | %{$_ -replace "/","/ESXi55/"} | Set-Content C:\TFTP-Root\ESXi55\BOOT.CFG
+	Get-Content C:\TFTP-Root\ESXi55\BOOT.CFG | %{$_ -replace "/","/ESXi55/"} | Set-Content C:\TFTP-Root\ESXi55\BOOTM.CFG
 	powershell C:\PXEMenuConfig.ps1 ESXi55
 	Write-BuildLog "ESXi 5.5 added to TFTP and PXE menu."
-	Write-BuildLog ""
 	$esxi55 = $true
 } else {
 	$esxi55 = $false
@@ -165,10 +234,9 @@ if (Test-Path "B:\ESXi51\*") {
 	Add-Content C:\TFTP-Root\ESXi51\Besx3-5.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi51\BOOT.CFG | %{$_ -replace "/","/ESXi51/"} | Set-Content C:\TFTP-Root\ESXi51\Besx4-5.cfg
 	Add-Content C:\TFTP-Root\ESXi51\Besx4-5.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
-	Get-Content C:\TFTP-Root\ESXi51\BOOT.CFG | %{$_ -replace "/","/ESXi51/"} | Set-Content C:\TFTP-Root\ESXi51\BOOT.CFG
+	Get-Content C:\TFTP-Root\ESXi51\BOOT.CFG | %{$_ -replace "/","/ESXi51/"} | Set-Content C:\TFTP-Root\ESXi51\BOOTM.CFG
 	powershell C:\PXEMenuConfig.ps1 ESXi51
 	Write-BuildLog "ESXi 5.1 added to TFTP and PXE menu."
-	Write-BuildLog ""
 	$esxi51 = $true
 } else {
 	$esxi51 = $false
@@ -190,10 +258,9 @@ if (Test-Path "B:\ESXi50\*") {
 	Add-Content C:\TFTP-Root\ESXi50\Besx3-5.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx3-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi50\BOOT.CFG | %{$_ -replace "/","/ESXi50/"} | Set-Content C:\TFTP-Root\ESXi50\Besx4-5.cfg
 	Add-Content C:\TFTP-Root\ESXi50\Besx4-5.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx4-5.cfg"
-	Get-Content C:\TFTP-Root\ESXi50\BOOT.CFG | %{$_ -replace "/","/ESXi50/"} | Set-Content C:\TFTP-Root\ESXi50\BOOT.CFG
+	Get-Content C:\TFTP-Root\ESXi50\BOOT.CFG | %{$_ -replace "/","/ESXi50/"} | Set-Content C:\TFTP-Root\ESXi50\BOOTM.CFG
 	powershell C:\PXEMenuConfig.ps1 ESXi50
 	Write-BuildLog "ESXi 5.0 added to TFTP and PXE menu."
-	Write-BuildLog ""
 	$esxi50 = $true
 } else {
 	$esxi50 = $false
@@ -215,7 +282,6 @@ if (Test-Path "B:\ESXi41\*") {
 	xcopy B:\ESXi41\mboot.c32 C:\TFTP-Root\ESXi41 /s /c /y /q
 	powershell C:\PXEMenuConfig.ps1 ESXi41
 	Write-BuildLog "ESXi 4.1 added to TFTP and PXE menu."
-	Write-BuildLog ""
 	$esxi41 = $true
 } else {
 	$esxi41 = $false
@@ -232,13 +298,12 @@ if (Test-Path "B:\ESX41\*") {
 	xcopy B:\ESX41\isolinux\initrd.img C:\TFTP-Root\ESX41 /s /c /y /q
 	powershell C:\PXEMenuConfig.ps1 ESX41
 	Write-BuildLog "ESX 4.1 added to TFTP and PXE menu."
-	Write-BuildLog ""
 	$esx41 = $true
 } else {
 	$esx41 = $false
 }
 
-if (!($esx41 -or $esxi41 -or $esxi50 -or $esxi51 -or $esxi55 -or $esxi60)) {
+if (!($esx41 -or $esxi41 -or $esxi50 -or $esxi51 -or $esxi55 -or $esxi60 -or $esxi65 -or $esxi67)) {
 	Write-BuildLog "No ESX or ESXi files found."
 	Write-BuildLog "Is the NAS VM running? If so, make sure the Build share is available and populated."
 	Write-BuildLog "Restart this machine when Build share is available; build will proceed after restart."
@@ -254,16 +319,39 @@ if (Test-Path "B:\gParted\*") {
 LABEL gParted
   MENU LABEL gParted utility
   kernel gparted/vmlinuz
-  append initrd=gparted/initrd.img boot=live config components union=overlay username=user noswap noeject ip= vga=788 fetch=tftp://192.168.199.4/gparted/filesystem.squashfs
+  append initrd=gparted/initrd.img boot=live config components union=overlay username=user noswap noeject ip= vga=788 fetch=tftp://\\dc.lab.local/gparted/filesystem.squashfs
 "@
 }
 
 Write-BuildLog "Checking for vCenter files..."
+if (Test-Path "B:\VIM_67\*") {
+	if ((Test-Path "B:\VIM_67\*.iso") -and !(Test-Path "B:\VIM_67\autorun.exe")){
+		Write-BuildLog "Extracting vCenter 6.7 installer from ISO."
+		start-process "C:\Program Files\7-Zip\7z.exe" -ArgumentList " x -r -y -aoa -oB:\VIM_67\ B:\VIM_67\*.iso" -RedirectStandardOutput C:\ExtractLog.txt -wait
+		remove-item "B:\VIM_67\*.iso"
+	}
+	Write-BuildLog "vCenter 6.7 found."
+	$vCenter67 = $true
+} else {
+	$vCenter67 = $false
+}
+if (Test-Path "B:\VIM_65\*") {
+	if ((Test-Path "B:\VIM_65\*.iso") -and !(Test-Path "B:\VIM_65\autorun.exe")){
+		Write-BuildLog "Extracting vCenter 6.5 installer from ISO."
+		start-process "C:\Program Files\7-Zip\7z.exe" -ArgumentList " x -r -y -aoa -oB:\VIM_65\ B:\VIM_65\*.iso" -RedirectStandardOutput C:\ExtractLog.txt -wait
+		remove-item "B:\VIM_65\*.iso"
+	}
+	Write-BuildLog "vCenter 6.5 found."
+	$vCenter65 = $true
+} else {
+	$vCenter65 = $false
+}
 if (Test-Path "B:\VIM_60\*") {
 	if ((Test-Path "B:\VIM_60\*.iso") -and !(Test-Path "B:\VIM_60\autorun.exe")){
 		Write-BuildLog "Extracting vCenter 6.0 installer from ISO."
-		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VIM_60\ B:\VIM_60\*.iso >> C:\ExtractLog.txt
-	}
+		start-process "C:\Program Files\7-Zip\7z.exe" -ArgumentList " x -r -y -aoa -oB:\VIM_60\ B:\VIM_60\*.iso" -RedirectStandardOutput C:\ExtractLog.txt -wait
+		remove-item "B:\VIM_60\*.iso"
+		}
 	Write-BuildLog "vCenter 6.0 found."
 	$vCenter60 = $true
 } else {
@@ -272,7 +360,8 @@ if (Test-Path "B:\VIM_60\*") {
 if (Test-Path "B:\VIM_55\*") {
 	if ((Test-Path "B:\VIM_55\*.iso") -and !(Test-Path "B:\VIM_55\autorun.exe")){
 		Write-BuildLog "Extracting vCenter 5.5 installer from ISO."
-		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VIM_55\ B:\VIM_55\*.iso >> C:\ExtractLog.txt
+		start-process "C:\Program Files\7-Zip\7z.exe" -ArgumentList " x -r -y -aoa -oB:\VIM_55\ B:\VIM_55\*.iso" -RedirectStandardOutput C:\ExtractLog.txt -wait
+		remove-item "B:\VIM_55\*.iso"
 	}
 	Write-BuildLog "vCenter 5.5 found."
 	$vCenter55 = $true
@@ -282,7 +371,8 @@ if (Test-Path "B:\VIM_55\*") {
 if (Test-Path "B:\VIM_51\*") {
 	if ((Test-Path "B:\VIM_51\*.iso") -and !(Test-Path "B:\VIM_51\autorun.exe")) {
 		Write-BuildLog "Extracting vCenter 5.1 installer from ISO."
-		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VIM_51\ B:\VIM_51\*.iso >> C:\ExtractLog.txt
+		start-process "C:\Program Files\7-Zip\7z.exe" -ArgumentList " x -r -y -aoa -oB:\VIM_51\ B:\VIM_51\*.iso" -RedirectStandardOutput C:\ExtractLog.txt -wait
+		remove-item "B:\VIM_51\*.iso"
 	}
 	Write-BuildLog "vCenter 5.1 found."
 	$vCenter51 = $true
@@ -293,7 +383,8 @@ if (Test-Path "B:\VIM_51\*") {
 if (Test-Path "B:\VIM_50\*") {
 	if ((Test-Path "B:\VIM_50\*.iso") -and !(Test-Path "B:\VIM_50\autorun.exe")) {
 		Write-BuildLog "Extracting vCenter 5.0 installer from ISO."
-		. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VIM_50\ B:\VIM_50\*.iso >> C:\ExtractLog.txt
+		start-process "C:\Program Files\7-Zip\7z.exe" -ArgumentList " x -r -y -aoa -oB:\VIM_50\ B:\VIM_50\*.iso" -RedirectStandardOutput C:\ExtractLog.txt -wait
+		remove-item "B:\VIM_50\*.iso"
 	}
 	Write-BuildLog "vCenter 5.0 found."
 	$vCenter50 = $true
@@ -312,61 +403,66 @@ if (Test-Path "B:\VIM_41\*") {
 	$vCenter41 = $false
 }
 
-if (!($vCenter41 -or $vCenter50 -or $vCenter51 -or $vCenter55 -or $vCenter60)) {
+if (!($vCenter41 -or $vCenter50 -or $vCenter51 -or $vCenter55 -or $vCenter60 -or $vCenter65 -or $vCenter67)) {
 	Write-BuildLog "No vCenter installation files found on Build share."
 	Write-BuildLog "Is the NAS VM running? If so, make sure the Build share is available and populated."
 	Write-BuildLog "Restart this machine when Build share is available; build will proceed after restart."
 	exit
 }
 
+if (!($vCenter67 -and $esxi67)) {
+	Write-BuildLog "vSphere 6.7 installation requirements not met."
+	$vSphere67 = $false
+} else {
+	$vSphere67 = $true
+}
+if (!($vCenter65 -and $esxi65)) {
+	Write-BuildLog "vSphere 6.5 installation requirements not met."
+	$vSphere65 = $false
+} else {
+	$vSphere65 = $true
+}
 if (!($vCenter60 -and $esxi60)) {
-	Write-BuildLog "vSphere 6.0 installation requirements not met. Please verify that both vCenter 6.0 & ESXi 6.0 exist on Build share."
+	Write-BuildLog "vSphere 6.0 installation requirements not met."
 	$vSphere60 = $false
 } else {
 	$vSphere60 = $true
 }
 if (!($vCenter55 -and $esxi55)) {
-	Write-BuildLog "vSphere 5.5 installation requirements not met. Please verify that both vCenter 5.5 & ESXi 5.5 exist on Build share."
+	Write-BuildLog "vSphere 5.5 installation requirements not met."
 	$vSphere55 = $false
 } else {
 	$vSphere55 = $true
 }
 if (!($vCenter51 -and $esxi51)) {
-	Write-BuildLog "vSphere 5.1 installation requirements not met. Please verify that both vCenter 5.1 & ESXi 5.1 exist on Build share."
+	Write-BuildLog "vSphere 5.1 installation requirements not met."
 	$vSphere51 = $false
 } else {
 	$vSphere51 = $true
 }
 if (!($vCenter50 -and $esxi50)) {
-	Write-BuildLog "vSphere 5.0 installation requirements not met. Please verify that both vCenter 5.0 & ESXi 5.0 exist on Build share."
+	Write-BuildLog "vSphere 5.0 installation requirements not met."
 	$vSphere50 = $false
 } else {
 	$vSphere50 = $true
 }
 if (!($vCenter41 -and ($esxi41 -or $esx41))) {
-	Write-BuildLog "vSphere 4.1 installation requirements not met. Please verify that both vCenter 4.1 & ESXi 4.1 exist on Build share."
+	Write-BuildLog "vSphere 4.1 installation requirements not met."
 	$vSphere41 = $false
 } else {
 	$vSphere41 = $true
 }
 
-if (!($vSphere41 -or $vSphere50 -or $vSphere51 -or $vSphere55 -or $vSphere60)) {
+if (!($vSphere41 -or $vSphere50 -or $vSphere51 -or $vSphere55 -or $vSphere60 -or $vSphere65 -or $vSphere67)) {
 	Write-BuildLog "Matching vCenter & ESXi distributions not found. Please check the Build share."
 }
 
-Write-BuildLog ""
-Write-BuildLog "Authorise and configure DHCP"
-netsh dhcp server 192.168.199.4 set dnscredentials administrator lab.local $AdminPWD
-netsh dhcp add server dc.lab.local 192.168.199.4 >> C:\DNS.log
-netsh dhcp server 192.168.199.4 add scope 192.168.199.0 255.255.255.0 "Lab scope" "Scope for lab.local"  >> C:\DNS.log
-netsh dhcp server 192.168.199.4 scope 192.168.199.0 add iprange 192.168.199.100 192.168.199.199 >> C:\DNS.log
-netsh dhcp server 192.168.199.4 scope 192.168.199.0 set optionvalue 003 IPADDRESS 192.168.199.2 >> C:\DNS.log
-netsh dhcp server 192.168.199.4 scope 192.168.199.0 set optionvalue 005 IPADDRESS 192.168.199.4 >> C:\DNS.log
-netsh dhcp server 192.168.199.4 scope 192.168.199.0 set optionvalue 006 IPADDRESS 192.168.199.4 >> C:\DNS.log
-netsh dhcp server 192.168.199.4 scope 192.168.199.0 set optionvalue 015 STRING lab.local >> C:\DNS.log
-netsh dhcp server 192.168.199.4 scope 192.168.199.0 set optionvalue 066 STRING 192.168.199.4 >> C:\DNS.log
-netsh dhcp server 192.168.199.4 scope 192.168.199.0 set optionvalue 067 STRING pxelinux.0 >> C:\DNS.log
-netsh dhcp server 192.168.199.4 scope 192.168.199.0 set state 1 >> C:\DNS.log
+$PCLIver = deployPowerCLI
+
+Write-BuildLog "Install, Authorise and configure DHCP"
+If ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62) {
+	$null = Add-WindowsFeature -IncludeManagementTools dhcp
+}
 Write-BuildLog "Create DNS Records"
 dnscmd localhost /config /UpdateOptions 0x0 >> C:\DNS.log
 dnscmd localhost /config lab.local /allowupdate 1 >> C:\DNS.log
@@ -413,16 +509,46 @@ If (($KMSIP.Split("."))[0] -ne "0") {
 	Write-BuildLog "Setting DNS record for external KMS server IP address to $KMSIP according to automate.ini."
 	dnscmd DC /RecordAdd lab.local _vlmcs._tcp SRV 0 10 1688 $KMSIP >> C:\DNS.log
 }
-
-Write-BuildLog ""
+Write-BuildLog "Setup DHCP scope"
+netsh dhcp server \\dc.lab.local set dnscredentials administrator lab.local $AdminPWD
+netsh dhcp add server dc.lab.local 192.168.199.4 >> C:\DNS.log
+netsh dhcp server \\dc.lab.local add scope 192.168.199.0 255.255.255.0 "Lab scope" "Scope for lab.local"  >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 add iprange 192.168.199.100 192.168.199.199 >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 003 IPADDRESS 192.168.199.2 >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 005 IPADDRESS \\dc.lab.local >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 006 IPADDRESS \\dc.lab.local >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 015 STRING lab.local >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 066 STRING \\dc.lab.local >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 067 STRING pxelinux.0 >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set state 1 >> C:\DNS.log
 Write-BuildLog "Checking available SQL Express versions."
 $null = New-Item -Path C:\temp -ItemType Directory -Force -Confirm:$false
 if (Test-Path "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe") {
 	Write-BuildLog "SQL Server Install found, not installing"
 }Else {
-	if (Test-Path "B:\VIM_60\redist\SQLEXPR\SQLEXPR_x64_ENU.exe") {
+	if ((Test-Path "B:\VIM_67\redist\SQLEXPR\SQLEXPR_x64_ENU.exe") -and ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62)) {
+		$vc67SQL = $true
+		Write-BuildLog "SQL Server 2012 Express SP2 for vCenter 6.7 found; installing."
+		copy B:\VIM_67\redist\SQLEXPR\SQLEXPR_x64_ENU.exe C:\temp
+		$Arguments = '/IACCEPTSQLSERVERLICENSETERMS /action=Install /FEATURES=SQL,Tools /SQLSYSADMINACCOUNTS="Lab\Domain Admins" /SQLSVCACCOUNT="Lab\vi-admin" /SQLSVCPASSWORD="' + $AdminPWD + '" /AGTSVCACCOUNT="Lab\vi-admin" /AGTSVCPASSWORD="' + $AdminPWD + '" /ADDCURRENTUSERASSQLADMIN /SECURITYMODE=SQL /SAPWD="VMware1!" /INSTANCENAME=SQLExpress /BROWSERSVCSTARTUPTYPE="Automatic" /TCPENABLED=1 /NPENABLED=1 /SQLSVCSTARTUPTYPE=Automatic /q'
+		Start-Process C:\temp\SQLEXPR_x64_ENU.exe -ArgumentList $Arguments -Wait
+		del c:\TEMP\SQLEXPR_x64_ENU.EXE 
+		Write-BuildLog "Creating Databases."
+		Start-Process "C:\Program Files\Microsoft SQL Server\110\Tools\Binn\sqlcmd.exe" -ArgumentList "-S dc\SQLEXPRESS -i B:\Automate\DC\MakeDB.txt" -RedirectStandardOutput c:\sqllog.txt -Wait
+		regedit -s B:\Automate\DC\SQLTCP.reg
+	} elseif ((Test-Path "B:\VIM_65\redist\SQLEXPR\SQLEXPR_x64_ENU.exe") -and ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62)) {
+		$vc65SQL = $true
+		Write-BuildLog "SQL Server 2012 Express SP2 for vCenter 6.5 found; installing."
+		copy B:\VIM_65\redist\SQLEXPR\SQLEXPR_x64_ENU.exe C:\temp
+		$Arguments = '/IACCEPTSQLSERVERLICENSETERMS /action=Install /FEATURES=SQL,Tools /SQLSYSADMINACCOUNTS="Lab\Domain Admins" /SQLSVCACCOUNT="Lab\vi-admin" /SQLSVCPASSWORD="' + $AdminPWD + '" /AGTSVCACCOUNT="Lab\vi-admin" /AGTSVCPASSWORD="' + $AdminPWD + '" /ADDCURRENTUSERASSQLADMIN /SECURITYMODE=SQL /SAPWD="VMware1!" /INSTANCENAME=SQLExpress /BROWSERSVCSTARTUPTYPE="Automatic" /TCPENABLED=1 /NPENABLED=1 /SQLSVCSTARTUPTYPE=Automatic /q'
+		Start-Process C:\temp\SQLEXPR_x64_ENU.exe -ArgumentList $Arguments -Wait
+		del c:\TEMP\SQLEXPR_x64_ENU.EXE 
+		Write-BuildLog "Creating Databases."
+		Start-Process "C:\Program Files\Microsoft SQL Server\110\Tools\Binn\sqlcmd.exe" -ArgumentList "-S dc\SQLEXPRESS -i B:\Automate\DC\MakeDB.txt" -RedirectStandardOutput c:\sqllog.txt -Wait
+		regedit -s B:\Automate\DC\SQLTCP.reg
+	} elseif ((Test-Path "B:\VIM_60\redist\SQLEXPR\SQLEXPR_x64_ENU.exe")  -and ((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62)) {
 		$vc6SQL = $true
-		Write-BuildLog "SQL Server 2012 Express SP1 for vCenter 6.0 found; installing."
+		Write-BuildLog "SQL Server 2012 Express SP2 for vCenter 6.0 found; installing."
 		copy B:\VIM_60\redist\SQLEXPR\SQLEXPR_x64_ENU.exe C:\temp
 		$Arguments = '/IACCEPTSQLSERVERLICENSETERMS /action=Install /FEATURES=SQL,Tools /SQLSYSADMINACCOUNTS="Lab\Domain Admins" /SQLSVCACCOUNT="Lab\vi-admin" /SQLSVCPASSWORD="' + $AdminPWD + '" /AGTSVCACCOUNT="Lab\vi-admin" /AGTSVCPASSWORD="' + $AdminPWD + '" /ADDCURRENTUSERASSQLADMIN /SECURITYMODE=SQL /SAPWD="VMware1!" /INSTANCENAME=SQLExpress /BROWSERSVCSTARTUPTYPE="Automatic" /TCPENABLED=1 /NPENABLED=1 /SQLSVCSTARTUPTYPE=Automatic /q'
 		Start-Process C:\temp\SQLEXPR_x64_ENU.exe -ArgumentList $Arguments -Wait
@@ -467,10 +593,12 @@ if (Test-Path "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe")
 		Start-Process "C:\Program Files (x86)\Microsoft SQL Server\90\Tools\Binn\sqlcmd.exe" -ArgumentList "-S dc\SQLEXPRESS -i B:\Automate\DC\MakeDB41.txt"  -RedirectStandardOutput c:\sqllog.txt -Wait; type C:\sqllog.txt  | add-content C:\buildlog.txt
 		regedit -s B:\Automate\DC\SQLTCP.reg
 	} else {
+		$vc67SQL = $false
+		$vc65SQL = $false
 		$vc6SQL = $false
 		$vc5SQL = $false
 		$vc4SQL = $false
-		Write-BuildLog "No SQL Express installers found. Please verify that all contents of vCenter ISO are copied into the correct folder on the Build share."
+		Write-BuildLog "No compatible SQL Express installers found. Please verify that all contents of vCenter ISO are copied into the correct folder on the Build share."
 		Read-Host "Press <ENTER> to exit"
 		exit
 	}
@@ -481,7 +609,7 @@ if (Test-Path B:\sqlmsssetup.exe) {
 If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -le 61)) {
 	Write-BuildLog "Doing Windows Server 2008 specific build actions"
 	if (Test-Path B:\SQLManagementStudio_x64_ENU.exe) {
-		if ( (!(Get-ChildItem B:\SQLManagementStudio_x64_ENU.exe).VersionInfo.ProductVersion -like "10.50.2500*") -and ($vc6SQL -or $vc5SQL -or $vc4SQL)) {
+		if ( (!(Get-ChildItem B:\SQLManagementStudio_x64_ENU.exe).VersionInfo.ProductVersion -like "10.50.2500*") -and ($vc67SQL -or$vc65SQL -or $vc6SQL -or $vc5SQL -or $vc4SQL)) {
 			Write-BuildLog "The version of SQL Management Studio on the Build share is incompatible with SQL Server 2008 Express R2 SP1. Please see ReadMe.html on the Build share."
 		} else {
 			Write-BuildLog "SQL Management Studio found; installing."
@@ -498,13 +626,13 @@ If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]:
 	}
 }
 If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]::OSVersion.Version.Minor) -ge 62)) {
-	Write-BuildLog "Doing Windows Server 2012 specific build actions"
+	Write-BuildLog "Doing Windows Server 2012 and 2016 specific build actions"
 	Write-BuildLog "Disabling autorun of ServerManager at logon."
 	Start-Process schtasks -ArgumentList ' /Change /TN "\Microsoft\Windows\Server Manager\ServerManager" /DISABLE'  -Wait -Verb RunAs
 	Write-BuildLog "Disabling screen saver"
 	set-ItemProperty -path 'HKCU:\Control Panel\Desktop' -name ScreenSaveActive -value 0
-	Write-BuildLog "Installing Administration tools."
-	Install-WindowsFeature –Name RSAT-DHCP,RSAT-DNS-Server,Net-Framework-Core
+	Write-BuildLog "Installing.Net Framework 3.5"
+	$null = Install-WindowsFeature Net-Framework-Core  -source D:\Sources\sxs
 	if (Test-Path B:\SQLManagementStudio_x64_ENU.exe) {
 		if ( (!(Get-ChildItem B:\SQLManagementStudio_x64_ENU.exe).VersionInfo.ProductVersion -like "10.50.2500*") -and ($vc6SQL -or $vc5SQL -or $vc4SQL)) {
 			Write-BuildLog "The version of SQL Management Studio on the Build share is incompatible with SQL Server 2008 Express R2 SP1. Please see ReadMe.html on the Build share."
@@ -513,7 +641,7 @@ If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]:
 			Start-Process B:\SQLManagementStudio_x64_ENU.exe -ArgumentList "/ACTION=INSTALL /IACCEPTSQLSERVERLICENSETERMS /FEATURES=Tools /q" -Wait -Verb RunAs
 		}
 	} else { Write-BuildLog "SQL Management Studio not found (optional)."}
-	Write-BuildLog "Setup IIS on Windows 2012"
+	Write-BuildLog "Setup IIS on Windows 2012 or 2016"
 	import-module servermanager
 	If (Test-Path "D:\Sources\sxs\*") {$null = add-windowsfeature web-server -includeallsubfeature -source D:\Sources\sxs}
 	If (Test-Path "E:\Sources\sxs\*") {$null = add-windowsfeature web-server -includeallsubfeature -source E:\Sources\sxs}
@@ -521,7 +649,7 @@ If (((([System.Environment]::OSVersion.Version.Major *10) +[System.Environment]:
 	New-WebBinding -Name "Default Web Site" -IP "*" -Port 443 -Protocol https
 	Write-BuildLog "Setup Certificate Authority & web enrollment."	
 	Import-Module ServerManager
-	Add-WindowsFeature AD-Certificate, Adcs-Cert-Authority, Adcs-Enroll-Web-Pol, Adcs-Enroll-Web-Svc, Adcs-Web-Enrollment , Adcs-Device-Enrollment , Adcs-Online-Cert -IncludeManagementTools
+	$null = Add-WindowsFeature AD-Certificate, Adcs-Cert-Authority, Adcs-Enroll-Web-Pol, Adcs-Enroll-Web-Svc, Adcs-Web-Enrollment , Adcs-Device-Enrollment , Adcs-Online-Cert -IncludeManagementTools
 	copy B:\Automate\DC\setupca.vbs C:\temp
 	Cscript C:\temp\setupca.vbs /is /iw /sn LabCA /sk 4096 /sp "RSA#Microsoft Software Key Storage Provider" /sa SHA256 >> c:\SetupCA.log
 	import-module webadministration
@@ -543,6 +671,8 @@ Write-BuildLog "Cleanup and creating Desktop shortcuts."
 reg delete HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run /v Build /f
 wscript B:\Automate\DC\Shortcuts.vbs
 
+browserAndFlash
+
 if (Test-Path B:\Automate\automate.ini) {
 	$timezone = ((Select-String -SimpleMatch "TZ=" -Path "B:\Automate\automate.ini").line).substring(3)
 	Write-BuildLog "Setting time zone to $timezone according to automate.ini."
@@ -562,6 +692,16 @@ if (Test-Path -Path "B:\VMTools\setup*") {
 		cd c:\temp
 		$vcinstall = ((Select-String -SimpleMatch "VCInstall=" -Path "B:\Automate\automate.ini").line).substring(10)
 		switch ($vcinstall) {
+			67 {
+			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/6.0/windows/VMware-tools-windows-9.10.0-2476743.iso --no-check-certificate -awget.log
+			. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VMtools\ c:\temp\VMware-tools-windows-9.10.0-2476743.iso >> C:\ExtractLog.txt
+			Write-BuildLog "VMware Tools V6.0 Downloaded and extracted to build share."
+			}
+			65 {
+			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/6.0/windows/VMware-tools-windows-9.10.0-2476743.iso --no-check-certificate -awget.log
+			. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VMtools\ c:\temp\VMware-tools-windows-9.10.0-2476743.iso >> C:\ExtractLog.txt
+			Write-BuildLog "VMware Tools V6.0 Downloaded and extracted to build share."
+			}
 			60 {
 			B:\Automate\_Common\wget.exe -nd http://packages.vmware.com/tools/esx/6.0/windows/VMware-tools-windows-9.10.0-2476743.iso --no-check-certificate -awget.log
 			. "C:\Program Files\7-Zip\7z.exe" x -r -y -aoa -oB:\VMtools\ c:\temp\VMware-tools-windows-9.10.0-2476743.iso >> C:\ExtractLog.txt
@@ -582,15 +722,15 @@ if (Test-Path -Path "B:\VMTools\setup*") {
 		}
 	}
 	if (Test-Path -Path "B:\VMTools\setup*") {
-	Write-BuildLog "VMware Tools found."
-	$vmtools = $true
-}
-	Write-BuildLog ""
+		Write-BuildLog "VMware Tools found."
+		$vmtools = $true
+	}
 }
 if (($vmtools) -and (-Not (Test-Path "C:\Program Files\VMware\VMware Tools\VMwareToolboxCmd.exe"))) {
 	Write-BuildLog "Installing VMware tools, build complete after reboot."
 	Write-BuildLog "(Re)build vCenter next."
 	if (([bool]($emailto -as [Net.Mail.MailAddress])) -and ($SmtpServer -ne "none")){
+		Write-BuildLog "Emailing log"
 		$mailmessage = New-Object system.net.mail.mailmessage
 		$SMTPClient = New-Object Net.Mail.SmtpClient($SmtpServer, 25) 
 		$mailmessage.from = "AutoLab<autolab@labguides.com>"
@@ -603,6 +743,8 @@ if (($vmtools) -and (-Not (Test-Path "C:\Program Files\VMware\VMware Tools\VMwar
 		$attach = new-object Net.Mail.Attachment("C:\buildlog.txt") 
 		$mailmessage.Attachments.Add($attach) 
 		$SMTPClient.Send($mailmessage)
+		$mailmessage.dispose()
+		$SMTPClient.dispose()
 	}
 	Start-Process B:\VMTools\setup64.exe -ArgumentList '/s /v "/qn"' -verb RunAs -Wait
 	Start-Sleep -Seconds 300

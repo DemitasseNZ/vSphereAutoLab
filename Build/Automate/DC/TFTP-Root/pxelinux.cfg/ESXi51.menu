@@ -7,7 +7,7 @@ LABEL Main Menu
 
 label esx51
 	KERNEL /esxi51/mboot.c32
-	APPEND -c /esxi51/boot.cfg
+	APPEND -c /esxi51/bootm.cfg
 	MENU LABEL ESXi 5.1 Manual Install
 	
 label ESX1-5

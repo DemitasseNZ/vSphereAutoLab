@@ -1,4 +1,4 @@
-To have gParted addedto PXE menu place teh following fiels here before the DC build
+To have gParted addedto PXE menu place the following files here before the DC build
 
 filesystem.squashfs
 initrd.img

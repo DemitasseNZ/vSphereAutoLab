@@ -18,7 +18,7 @@
                     <InstallFrom>
                         <MetaData wcm:action="add">
                             <Key>/IMAGE/INDEX</Key>
-                            <Value>1</Value>
+                            <Value>2</Value>
                         </MetaData>
                     </InstallFrom>
                 </OSImage>
@@ -107,13 +107,13 @@
                     <Order>1</Order>
                     <RequiresUserInput>true</RequiresUserInput>
                 </SynchronousCommand>
-				                <SynchronousCommand wcm:action="add">
+				<SynchronousCommand wcm:action="add">
                     <CommandLine>D:\Build.cmd</CommandLine>
                     <Description>Phase One Installer from D Drive</Description>
                     <Order>2</Order>
                     <RequiresUserInput>true</RequiresUserInput>
                 </SynchronousCommand>
-				                <SynchronousCommand wcm:action="add">
+				<SynchronousCommand wcm:action="add">
                     <CommandLine>E:\Build.cmd</CommandLine>
                     <Description>Phase One Installer from E Drive</Description>
                     <Order>3</Order>

@@ -22,9 +22,37 @@ param($version)
 . "C:\PSFunctions.ps1"
 
 switch ($version) {
+	ESXi67 {
+		if ((Test-Path "C:\TFTP-Root\ESXi67\*") -and (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\default" | Select-String -Pattern "ESXi 6.7"))) {
+		Write-BuildLog "Adding ESXi 6.7 option to PXE menu"
+		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
+
+LABEL ESXi 67
+  MENU LABEL ESXi 6.7 automated builds
+  KERNEL pxelinux.cfg/menu.c32
+  APPEND pxelinux.cfg/ESXi67.menu
+"@
+		} else {
+			Write-BuildLog "ESXi 6.7 already in PXE Menu"
+		}
+	}
+	ESXi65 {
+		if ((Test-Path "C:\TFTP-Root\ESXi65\*") -and (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\default" | Select-String -Pattern "ESXi 6.5"))) {
+		Write-BuildLog "Adding ESXi 6.5 option to PXE menu"
+		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
+
+LABEL ESXi 65
+  MENU LABEL ESXi 6.5 automated builds
+  KERNEL pxelinux.cfg/menu.c32
+  APPEND pxelinux.cfg/ESXi65.menu
+"@
+		} else {
+			Write-BuildLog "ESXi 6.5 already in PXE Menu"
+		}
+	}
 	ESXi60 {
 		if ((Test-Path "C:\TFTP-Root\ESXi60\*") -and (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\default" | Select-String -Pattern "ESXi 6.0"))) {
-		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 6.0 option to PXE menu"
+		Write-BuildLog "Adding ESXi 6.0 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
 LABEL ESXi 60
@@ -33,12 +61,12 @@ LABEL ESXi 60
   APPEND pxelinux.cfg/ESXi60.menu
 "@
 		} else {
-			Write-BuildLog "ESXi 5.5 already in PXE Menu"
+			Write-BuildLog "ESXi 6.0 already in PXE Menu"
 		}
 	}
 	ESXi55 {
 		if ((Test-Path "C:\TFTP-Root\ESXi55\*") -and (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\default" | Select-String -Pattern "ESXi 5.5"))) {
-		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 5.5 option to PXE menu"
+		Write-BuildLog "Adding ESXi 5.5 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
 LABEL ESXi 5.5
@@ -52,7 +80,7 @@ LABEL ESXi 5.5
 	}
 	ESXi51 {
 		if ((Test-Path "C:\TFTP-Root\ESXi51\*") -and (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\default" | Select-String -Pattern "ESXi 5.1"))) {
-		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 5.1 option to PXE menu"
+		Write-BuildLog "Adding ESXi 5.1 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
 LABEL ESXi 5.1
@@ -66,7 +94,7 @@ LABEL ESXi 5.1
 	}
 	ESXi50 {
 		if ((Test-Path "C:\TFTP-Root\ESXi50\*") -and (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\default" | Select-String -Pattern "ESXi 5.0"))) {
-		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 5.0 option to PXE menu"
+		Write-BuildLog "Adding ESXi 5.0 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
 LABEL ESXi 5.0
@@ -78,7 +106,7 @@ LABEL ESXi 5.0
 	}
 	ESXi41 {
 		if (Test-Path "C:\TFTP-Root\ESXi41\*") {
-		Add-Content -Path "C:\buildlog.txt" -Value "Adding ESXi 4.1 option to PXE menu"
+		Write-BuildLog "Adding ESXi 4.1 option to PXE menu"
 		Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
 LABEL ESXi 4.1
@@ -102,7 +130,7 @@ label esxi2-4
 	}
 	ESX41 {
 		if ((Test-Path "C:\TFTP-Root\ESX41\*") -and (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\ESXi41.menu" | Select-String -Pattern "ESX classic"))) {
-			Add-Content -Path "C:\buildlog.txt" -Value "Adding ESX 4.1 option to PXE menu"
+			Write-BuildLog "Adding ESX 4.1 option to PXE menu"
 			Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\ESXi41.menu" -Value @"
 
 label esx2-4
@@ -114,7 +142,7 @@ label esx2-4
 	}
 	vCloud {
 		if (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\default" | Select-String -Pattern "vCloud") ) {
-			Add-Content -Path "C:\buildlog.txt" -Value "Adding vCloud option to PXE menu"
+			Write-BuildLog "Adding vCloud option to PXE menu"
 			Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\default" -Value @"
 
 LABEL vCloud
@@ -126,7 +154,7 @@ LABEL vCloud
 	}
 	vCD51 {
 		if ((Test-Path "B:\vCD_51\*") -and (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\vCloud.menu" | Select-String -Pattern "vCloud Director 5.1"))){
-			Add-Content -Path "C:\buildlog.txt" -Value "Adding vCloud 5.1 option to PXE menu"
+			Write-BuildLog "Adding vCloud 5.1 option to PXE menu"
 			Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\vCloud.menu" -Value @"
 		
 label vCloud51
@@ -143,7 +171,7 @@ label vCloud51
 	}
 	vCD15 {
 		if ((Test-Path "B:\vCD_15\*") -and (!(Get-Content "C:\TFTP-Root\pxelinux.cfg\vCloud.menu" | Select-String -Pattern "vCloud Director 1.5"))){
-			Add-Content -Path "C:\buildlog.txt" -Value "Adding vCloud 1.5 option to PXE menu"
+			Write-BuildLog "Adding vCloud 1.5 option to PXE menu"
 			Add-Content -Path "C:\TFTP-Root\pxelinux.cfg\vCloud.menu" -Value @"
 
 label vCloud15
