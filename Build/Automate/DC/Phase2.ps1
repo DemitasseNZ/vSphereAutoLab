@@ -130,6 +130,7 @@ if (Test-Path "B:\ESXi67\*") {
 	Write-BuildLog "ESXi 6.7 found; creating C:\TFTP-Root\ESXi67 and copying ESXi 67 boot files."
 	$null = $null = New-Item -Path C:\TFTP-Root\ESXi67 -ItemType Directory -Force -Confirm:$false
 	xcopy B:\ESXi67\*.* C:\TFTP-Root\ESXi67\ /s /c /y /q
+	xcopy b:\automate\DC\mboot.c32 C:\TFTP-Root\ESXi67\ /y /q
 	Get-Content C:\TFTP-Root\ESXi67\BOOT.CFG | %{$_ -replace "/","/ESXi67/"} | Set-Content C:\TFTP-Root\ESXi67\Besx1-67.cfg
 	Add-Content C:\TFTP-Root\ESXi67\Besx1-67.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx1-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi67\BOOT.CFG | %{$_ -replace "/","/ESXi67/"} | Set-Content C:\TFTP-Root\ESXi67\Besx2-67.cfg
@@ -154,6 +155,7 @@ if (Test-Path "B:\ESXi65\*") {
 	Write-BuildLog "ESXi 6.5 found; creating C:\TFTP-Root\ESXi65 and copying ESXi 65 boot files."
 	$null = $null = New-Item -Path C:\TFTP-Root\ESXi65 -ItemType Directory -Force -Confirm:$false
 	xcopy B:\ESXi65\*.* C:\TFTP-Root\ESXi65\ /s /c /y /q
+	xcopy b:\automate\DC\mboot.c32 C:\TFTP-Root\ESXi65\ /y /q
 	Get-Content C:\TFTP-Root\ESXi65\BOOT.CFG | %{$_ -replace "/","/ESXi65/"} | Set-Content C:\TFTP-Root\ESXi65\Besx1-65.cfg
 	Add-Content C:\TFTP-Root\ESXi65\Besx1-65.cfg "kernelopt=ks=nfs://192.168.199.7/mnt/LABVOL/Build/Automate/Hosts/esx1-5.cfg"
 	Get-Content C:\TFTP-Root\ESXi65\BOOT.CFG | %{$_ -replace "/","/ESXi65/"} | Set-Content C:\TFTP-Root\ESXi65\Besx2-65.cfg
@@ -319,7 +321,7 @@ if (Test-Path "B:\gParted\*") {
 LABEL gParted
   MENU LABEL gParted utility
   kernel gparted/vmlinuz
-  append initrd=gparted/initrd.img boot=live config components union=overlay username=user noswap noeject ip= vga=788 fetch=tftp://\\dc.lab.local/gparted/filesystem.squashfs
+  append initrd=gparted/initrd.img boot=live config components union=overlay username=user noswap noeject ip= vga=788 fetch=tftp://192.168.199.4/gparted/filesystem.squashfs
 "@
 }
 
@@ -515,10 +517,10 @@ netsh dhcp add server dc.lab.local 192.168.199.4 >> C:\DNS.log
 netsh dhcp server \\dc.lab.local add scope 192.168.199.0 255.255.255.0 "Lab scope" "Scope for lab.local"  >> C:\DNS.log
 netsh dhcp server \\dc.lab.local scope 192.168.199.0 add iprange 192.168.199.100 192.168.199.199 >> C:\DNS.log
 netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 003 IPADDRESS 192.168.199.2 >> C:\DNS.log
-netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 005 IPADDRESS \\dc.lab.local >> C:\DNS.log
-netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 006 IPADDRESS \\dc.lab.local >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 005 IPADDRESS 192.168.199.4 >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 006 IPADDRESS 192.168.199.4 >> C:\DNS.log
 netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 015 STRING lab.local >> C:\DNS.log
-netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 066 STRING \\dc.lab.local >> C:\DNS.log
+netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 066 STRING 192.168.199.4 >> C:\DNS.log
 netsh dhcp server \\dc.lab.local scope 192.168.199.0 set optionvalue 067 STRING pxelinux.0 >> C:\DNS.log
 netsh dhcp server \\dc.lab.local scope 192.168.199.0 set state 1 >> C:\DNS.log
 Write-BuildLog "Checking available SQL Express versions."
@@ -532,6 +534,9 @@ if (Test-Path "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe")
 		copy B:\VIM_67\redist\SQLEXPR\SQLEXPR_x64_ENU.exe C:\temp
 		$Arguments = '/IACCEPTSQLSERVERLICENSETERMS /action=Install /FEATURES=SQL,Tools /SQLSYSADMINACCOUNTS="Lab\Domain Admins" /SQLSVCACCOUNT="Lab\vi-admin" /SQLSVCPASSWORD="' + $AdminPWD + '" /AGTSVCACCOUNT="Lab\vi-admin" /AGTSVCPASSWORD="' + $AdminPWD + '" /ADDCURRENTUSERASSQLADMIN /SECURITYMODE=SQL /SAPWD="VMware1!" /INSTANCENAME=SQLExpress /BROWSERSVCSTARTUPTYPE="Automatic" /TCPENABLED=1 /NPENABLED=1 /SQLSVCSTARTUPTYPE=Automatic /q'
 		Start-Process C:\temp\SQLEXPR_x64_ENU.exe -ArgumentList $Arguments -Wait
+		do {
+			start-sleep 10
+		} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
 		del c:\TEMP\SQLEXPR_x64_ENU.EXE 
 		Write-BuildLog "Creating Databases."
 		Start-Process "C:\Program Files\Microsoft SQL Server\110\Tools\Binn\sqlcmd.exe" -ArgumentList "-S dc\SQLEXPRESS -i B:\Automate\DC\MakeDB.txt" -RedirectStandardOutput c:\sqllog.txt -Wait
@@ -542,6 +547,9 @@ if (Test-Path "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe")
 		copy B:\VIM_65\redist\SQLEXPR\SQLEXPR_x64_ENU.exe C:\temp
 		$Arguments = '/IACCEPTSQLSERVERLICENSETERMS /action=Install /FEATURES=SQL,Tools /SQLSYSADMINACCOUNTS="Lab\Domain Admins" /SQLSVCACCOUNT="Lab\vi-admin" /SQLSVCPASSWORD="' + $AdminPWD + '" /AGTSVCACCOUNT="Lab\vi-admin" /AGTSVCPASSWORD="' + $AdminPWD + '" /ADDCURRENTUSERASSQLADMIN /SECURITYMODE=SQL /SAPWD="VMware1!" /INSTANCENAME=SQLExpress /BROWSERSVCSTARTUPTYPE="Automatic" /TCPENABLED=1 /NPENABLED=1 /SQLSVCSTARTUPTYPE=Automatic /q'
 		Start-Process C:\temp\SQLEXPR_x64_ENU.exe -ArgumentList $Arguments -Wait
+		do {
+			start-sleep 10
+		} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
 		del c:\TEMP\SQLEXPR_x64_ENU.EXE 
 		Write-BuildLog "Creating Databases."
 		Start-Process "C:\Program Files\Microsoft SQL Server\110\Tools\Binn\sqlcmd.exe" -ArgumentList "-S dc\SQLEXPRESS -i B:\Automate\DC\MakeDB.txt" -RedirectStandardOutput c:\sqllog.txt -Wait
@@ -552,6 +560,9 @@ if (Test-Path "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe")
 		copy B:\VIM_60\redist\SQLEXPR\SQLEXPR_x64_ENU.exe C:\temp
 		$Arguments = '/IACCEPTSQLSERVERLICENSETERMS /action=Install /FEATURES=SQL,Tools /SQLSYSADMINACCOUNTS="Lab\Domain Admins" /SQLSVCACCOUNT="Lab\vi-admin" /SQLSVCPASSWORD="' + $AdminPWD + '" /AGTSVCACCOUNT="Lab\vi-admin" /AGTSVCPASSWORD="' + $AdminPWD + '" /ADDCURRENTUSERASSQLADMIN /SECURITYMODE=SQL /SAPWD="VMware1!" /INSTANCENAME=SQLExpress /BROWSERSVCSTARTUPTYPE="Automatic" /TCPENABLED=1 /NPENABLED=1 /SQLSVCSTARTUPTYPE=Automatic /q'
 		Start-Process C:\temp\SQLEXPR_x64_ENU.exe -ArgumentList $Arguments -Wait
+		do {
+			start-sleep 10
+		} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
 		del c:\TEMP\SQLEXPR_x64_ENU.EXE 
 		Write-BuildLog "Creating Databases."
 		Start-Process "C:\Program Files\Microsoft SQL Server\110\Tools\Binn\sqlcmd.exe" -ArgumentList "-S dc\SQLEXPRESS -i B:\Automate\DC\MakeDB.txt" -RedirectStandardOutput c:\sqllog.txt -Wait
@@ -562,6 +573,9 @@ if (Test-Path "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe")
 		copy B:\VIM_55\redist\SQLEXPR\SQLEXPR_x64_ENU.exe C:\temp
 		$Arguments = '/IACCEPTSQLSERVERLICENSETERMS /action=Install /FEATURES=SQL,Tools /SQLSYSADMINACCOUNTS="Lab\Domain Admins" /SQLSVCACCOUNT="Lab\vi-admin" /SQLSVCPASSWORD="' + $AdminPWD + '" /AGTSVCACCOUNT="Lab\vi-admin" /AGTSVCPASSWORD="' + $AdminPWD + '" /ADDCURRENTUSERASSQLADMIN /SECURITYMODE=SQL /SAPWD="VMware1!" /INSTANCENAME=SQLExpress /BROWSERSVCSTARTUPTYPE="Automatic" /TCPENABLED=1 /NPENABLED=1 /SQLSVCSTARTUPTYPE=Automatic /q'
 		Start-Process C:\temp\SQLEXPR_x64_ENU.exe -ArgumentList $Arguments -Wait
+		do {
+			start-sleep 10
+		} until ((get-process "msiexec" -ea SilentlyContinue) -eq $Null)
 		del c:\TEMP\SQLEXPR_x64_ENU.EXE 
 		Write-BuildLog "Creating Databases."
 		Start-Process "C:\Program Files\Microsoft SQL Server\100\Tools\Binn\sqlcmd.exe" -ArgumentList "-S dc\SQLEXPRESS -i B:\Automate\DC\MakeDB.txt" -RedirectStandardOutput c:\sqllog.txt -Wait
